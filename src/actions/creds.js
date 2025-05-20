@@ -1,35 +1,48 @@
 //Token Handlers
-export async function saveToken(token) {
+export function saveToken(token) {
    localStorage.setItem('token', token);
 }
 
-export async function getToken() {
-   return localStorage.getItem('token');
+export function getToken() {
+   const token = localStorage.getItem('token');
+   if (token) {
+      return token
+   }
+   return null
 }
 
 
 //Credentials Handlers
-export async function saveCredentials(credentials) {
+export function saveCredentials(credentials) {
    localStorage.setItem('credentials', JSON.stringify(credentials));
 }
 
-export async function getCredentials() {
-   return JSON.parse(localStorage.getItem('credentials'));
+export function getCredentials() {
+   const cred = JSON.parse(localStorage.getItem('credentials'));
+   return cred
 }
 
 
 
 //Auth Handlers
-export async function addAuth(token, credentials) {
+export function addAuth(token, credentials) {
    saveToken(token);
    saveCredentials(credentials);
 }
 
-export async function removeAuth() {
-   localStorage.removeItem('credentials');
+export function removeAuth() {
    localStorage.removeItem('token');
+   localStorage.removeItem('credentials');
 }
 
-export async function checkAuth() {
-   return getCredentials() !== null && getToken() !== null
+export function checkAuth() {
+   const token = getToken()
+   const credentials = getCredentials()
+
+   if (token && credentials) {
+      return true
+   }
+   else {
+      return false
+   }
 }

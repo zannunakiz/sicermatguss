@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import HeartRate from '../../components/HeartRate';
+import ResetDialog from '../../components/ResetDialog';
+import { usePairedDevice } from '../../context/PairedDeviceContext';
+import { useToast } from '../../context/ToastContext';
 
 const Punch = ({ fetchData }) => {
    // State variables
@@ -10,6 +13,7 @@ const Punch = ({ fetchData }) => {
    const [avgPower, setAvgPower] = useState(0);
    const [timeElapsedPunch, setTimeElapsedPunch] = useState(0);
    const [isFetching, setIsFetching] = useState(false);
+   const [resetDialog, setResetDialog] = useState(false)
 
    // Refs for chart instances and data
    const punchPowerGaugeRef = useRef(null);
@@ -25,7 +29,39 @@ const Punch = ({ fetchData }) => {
    const punchPowersRef = useRef([]);
    const allPunchDataRef = useRef([]);
 
-   // Initialize charts on component mount
+   const toast = useToast()
+
+   const { pairedDevice } = usePairedDevice()
+
+   const intervalRef = useRef(null);
+
+   const startExercise = () => {
+      if (pairedDevice.name === "") {
+         toast.error("No device connected");
+         return;
+      }
+
+      setIsFetching(prev => {
+         const nextState = !prev;
+
+         toast.normal(`Punch Exercise ${nextState ? "Started" : "Paused"}`);
+
+         // Kalau mulai (ON)
+         if (nextState) {
+            fetchData("punch");
+            intervalRef.current = setInterval(() => {
+               fetchData("punch");
+            }, 500);
+         } else {
+            // Kalau berhenti (OFF)
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+         }
+
+         return nextState;
+      });
+   };
+
    useEffect(() => {
       // Initialize punch power gauge
       punchPowerGaugeRef.current = new window.Gauge(punchPowerGaugeCanvasRef.current).setOptions({
@@ -176,13 +212,6 @@ const Punch = ({ fetchData }) => {
       chart.update();
    }, [timeElapsedPunch])
 
-   // Button handlers
-   const startExercise = () => {
-      setIsFetching(prev => !prev);
-
-      fetchData("punch")
-   };
-
    const resetExercise = () => {
       setPunchCount(0);
       setMaxPower(0);
@@ -191,6 +220,8 @@ const Punch = ({ fetchData }) => {
       setAvgPower(0);
       setTimeElapsedPunch(0);
       setIsFetching(false);
+      clearInterval(intervalRef.current);
+
       punchPowersRef.current = [];
       allPunchDataRef.current = [];
 
@@ -237,7 +268,7 @@ const Punch = ({ fetchData }) => {
    }, [isFetching, timeElapsedPunch, updateData]);
 
    return (
-      <section id="punch-content">
+      <section id="punch-content" className='overflow-x-hidden'>
          <div className="container dashboard-container" id="punch-training">
             <h1 className="dashboard-title boxing-title">Punching Exercise Dashboard</h1>
             <h4 className="text-center text-white mb-10 dashboard-subtitle">
@@ -258,7 +289,7 @@ const Punch = ({ fetchData }) => {
                      ref={rstPunchRef}
                      id="rst-punch"
                      className="rst-btn"
-                     onClick={resetExercise}
+                     onClick={() => setResetDialog(true)}
                   >
                      Reset
                   </button>
@@ -340,6 +371,15 @@ const Punch = ({ fetchData }) => {
 
          <hr className='h-[3px] bg-blue-500 mt-20 mb-10'></hr>
          <HeartRate />
+
+         {resetDialog &&
+            <ResetDialog
+               isOpen={resetDialog}
+               onClose={() => setResetDialog(false)}
+               onSubmit={resetExercise}
+            />
+         }
+
       </section>
    );
 };

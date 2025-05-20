@@ -27,7 +27,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       { name: 'History', path: '/menus/history', icon: History },
    ];
 
-   const handleConfirmLogout = () => {
+   const handleConfirmLogout = async () => {
+      await localStorage.removeItem('token');
+      await localStorage.removeItem('credentials');
       setShowLogoutDialog(false);
       window.location.href = '/';
    };

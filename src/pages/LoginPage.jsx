@@ -1,11 +1,25 @@
 import { Eye, EyeOff, Lock, Mail, User, UserCircle, UserPlus } from 'lucide-react'
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useNavigate } from 'react-router-dom'
+import { authSignIn, authSignUp } from '../actions/authActions'
+import { checkAuth } from '../actions/creds'
+import { useToast } from '../context/ToastContext'
 
 const LoginPage = () => {
    const [activeTab, setActiveTab] = useState("signin")
    const [showPassword, setShowPassword] = useState(false)
    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
    const [loading, setLoading] = useState(false)
+
+   const navigate = useNavigate()
+   const toast = useToast()
+
+   useEffect(() => {
+      const isAuth = checkAuth()
+      if (isAuth) {
+         window.location.href = "/homepage"
+      }
+   }, [])
 
    // Form states
    const [signinForm, setSigninForm] = useState({
@@ -37,21 +51,70 @@ const LoginPage = () => {
       }))
    }
 
-   const handleSignin = (e) => {
+   const handleSignin = async (e) => {
       e.preventDefault()
-      setLoading(true)
-      setLoading(false)
-      window.location.href = "/homepage"
-   }
+      await setLoading(true)
 
-   const handleSignup = (e) => {
-      e.preventDefault()
-      if (signupForm.password !== signupForm.confirmPassword) {
-         alert("Password did not Match !")
+      const res = await authSignIn(signinForm)
+      if (!res) {
+         toast.error("Sign In Failed !")
+         setLoading(false)
          return
       }
-      window.location.href = "/homepage"
+      await setLoading(false)
+      await toast.success("Successfully Signed In!")
+      navigate("/homepage")
    }
+
+   const handleSignup = async (e) => {
+      e.preventDefault();
+      setLoading(true);
+
+      // Format username (capitalize first letter)
+      const formattedUsername =
+         signupForm.username.charAt(0).toUpperCase() + signupForm.username.slice(1);
+
+      // Format name to all lowercase
+      const formattedName = signupForm.name.toLowerCase();
+
+      // Password rules check
+      const password = signupForm.password;
+      const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+
+      if (!passwordRegex.test(password)) {
+         toast.error(
+            "Password must be at least 8 characters and contain a capital letter, a number, and a symbol!"
+         );
+         setLoading(false);
+         return;
+      }
+
+      if (password !== signupForm.confirmPassword) {
+         toast.error("Password and Confirm Password do not match!");
+         setLoading(false);
+         return;
+      }
+
+      // Strip confirmPassword & submit updated data
+      const { confirmPassword, ...rest } = signupForm;
+      const signUpData = {
+         ...rest,
+         username: formattedUsername,
+         name: formattedName,
+      };
+
+      const res = await authSignUp(signUpData);
+      if (res) {
+         toast.success(
+            "Sign Up Successful! Please check your email to verify your account."
+         );
+      } else {
+         toast.error("Sign Up Failed!");
+      }
+
+      setLoading(false);
+   };
+
 
    return (
       <div className="min-h-[92dvh] flex items-center justify-center p-4 ">
@@ -113,6 +176,7 @@ const LoginPage = () => {
                               <input
                                  type="email"
                                  id="email"
+                                 autoComplete='off'
                                  name="email"
                                  value={signinForm.email}
                                  onChange={handleSigninChange}
@@ -135,6 +199,7 @@ const LoginPage = () => {
                                  type={showPassword ? "text" : "password"}
                                  id="password"
                                  name="password"
+                                 autoComplete='new-password'
                                  value={signinForm.password}
                                  onChange={handleSigninChange}
                                  className="w-full pl-10 pr-10 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
@@ -299,7 +364,7 @@ const LoginPage = () => {
                               type="submit"
                               className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
                            >
-                              {loading ? "Signing In..." : "Create"}
+                              {loading ? "Signing Up..." : "Create"}
                            </button>
                         </div>
                      </form>

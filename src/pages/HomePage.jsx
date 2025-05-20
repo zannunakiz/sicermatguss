@@ -1,8 +1,19 @@
 import { Dumbbell, History, Laptop } from "lucide-react"
+import { useEffect } from "react"
 import { Link } from "react-router-dom"
+import { checkAuth, getToken } from "../actions/creds"
 import ExerciseCard from "../components/ExerciseCard"
 
 const HomePage = () => {
+
+   useEffect(() => {
+      const isAuth = checkAuth()
+      console.log(getToken())
+      if (!isAuth) {
+         window.location.href = "/"
+      }
+   }, [])
+
    const exercises = [
       {
          title: "Pushups",

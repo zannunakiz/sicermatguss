@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import HeartRate from '../../components/HeartRate';
+import ResetDialog from '../../components/ResetDialog';
+import { usePairedDevice } from '../../context/PairedDeviceContext';
+import { useToast } from '../../context/ToastContext';
 
 const Situp = ({ fetchData }) => {
    // State variables
@@ -10,6 +13,7 @@ const Situp = ({ fetchData }) => {
    const [isRunning, setIsRunning] = useState(false);
    const [time, setTime] = useState(0);
    const [isFetching, setIsFetching] = useState(false);
+   const [resetDialog, setResetDialog] = useState(false)
 
    // Refs for chart instances and DOM elements
    const situpGaugeRef = useRef(null);
@@ -31,6 +35,38 @@ const Situp = ({ fetchData }) => {
       const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
       const secs = (seconds % 60).toString().padStart(2, '0');
       return `${minutes}:${secs}`;
+   };
+
+
+   const toast = useToast()
+   const { pairedDevice } = usePairedDevice()
+   const intervalRef = useRef(null);
+
+   const startExercise = () => {
+      if (pairedDevice.name === "") {
+         toast.error("No device connected");
+         return;
+      }
+
+      setIsFetching(prev => {
+         const nextState = !prev;
+         startPauseTime()
+         toast.normal(`Situp Exercise ${nextState ? "Started" : "Paused"}`);
+
+         // Kalau mulai (ON)
+         if (nextState) {
+            fetchData("situp");
+            intervalRef.current = setInterval(() => {
+               fetchData("situp");
+            }, 500);
+         } else {
+            // Kalau berhenti (OFF)
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+         }
+
+         return nextState;
+      });
    };
 
    // Initialize charts on component mount
@@ -183,20 +219,14 @@ const Situp = ({ fetchData }) => {
    }, [stabilityRate, isFetching, timeElapsedSitup, situpSet, situpIntervalsRef, lastSitupTimeRef]);
 
    // Exercise control functions
-   const startExercise = () => {
-      setIsFetching(prev => !prev);
-      startPauseTime();
-
-
-      fetchData("situp")
-   };
-
    const resetExercise = () => {
       setSitupCount(0);
       setSitupSet(0);
       setStabilityRate(0);
       setTimeElapsedSitup(0);
       setIsFetching(false);
+      clearInterval(intervalRef.current);
+
       lastSitupTimeRef.current = 0;
       situpIntervalsRef.current = [];
       allSitupDataRef.current = [];
@@ -238,7 +268,7 @@ const Situp = ({ fetchData }) => {
    }, [isFetching, timeElapsedSitup, stabilityRate, updateData]);
 
    return (
-      <section id="situp-content">
+      <section id="situp-content" className='overflow-x-hidden'>
          <div className="container dashboard-container" id="situp-training">
             <h1 className="dashboard-title boxing-title">Sit Up Exercise Dashboard</h1>
             <h4 className="dashboard-subtitle text-center text-white mb-10">
@@ -259,8 +289,7 @@ const Situp = ({ fetchData }) => {
                      ref={rstSitupRef}
                      id="rst-situp"
                      className="rst-btn"
-                     onClick={resetExercise}
-                  >
+                     onClick={() => setResetDialog(true)}>
                      Reset
                   </button>
                </div>
@@ -333,6 +362,14 @@ const Situp = ({ fetchData }) => {
 
          <hr className='h-[3px] bg-blue-500 mt-20 mb-10'></hr>
          <HeartRate />
+
+         {resetDialog &&
+            <ResetDialog
+               isOpen={resetDialog}
+               onClose={() => setResetDialog(false)}
+               onSubmit={resetExercise}
+            />
+         }
       </section>
    );
 };

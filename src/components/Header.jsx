@@ -1,6 +1,8 @@
-import { LogOut, Menu, Wifi, WifiOff } from 'lucide-react'
+
+import { LogOut, Menu, WatchIcon, Wifi, WifiOff } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { usePairedDevice } from '../context/PairedDeviceContext'
 import LogoutDialog from './LogoutDialog'
 import Sidebar from './Sidebar'
 
@@ -10,15 +12,18 @@ const Header = () => {
    const [showLogoutDialog, setShowLogoutDialog] = useState(false);
    const deviceStatusRef = useRef(null)
    const navigate = useNavigate()
+   const { pairedDevice } = usePairedDevice()
 
 
-   const deviceConnected = true
+   const deviceConnected = pairedDevice.name !== ""
    const deviceInfo = {
-      name: "Athlete Monitor X1",
-      ssid: "SICERMAT_Network"
+      name: `${pairedDevice.name || "Not Connected"}`,
+      ssid: `${pairedDevice.ssid || "Not Connected"}`
    }
 
-   const handleConfirmLogout = () => {
+   const handleConfirmLogout = async () => {
+      await localStorage.removeItem('token');
+      await localStorage.removeItem('credentials');
       setShowLogoutDialog(false);
       window.location.href = '/';
    };
@@ -100,7 +105,7 @@ const Header = () => {
                                  <div className="mb-3 space-y-1.5">
                                     <p className="text-gray-200 text-sm">
                                        <span className="text-gray-400">Device:</span>{" "}
-                                       <span className="font-medium">{deviceInfo.name}</span>
+                                       <span className="font-medium truncate">{deviceInfo.name}</span>
                                     </p>
                                     <p className="text-gray-200 text-sm">
                                        <span className="text-gray-400">SSID:</span>{" "}
@@ -110,10 +115,10 @@ const Header = () => {
 
                                  <Link
                                     to="/menus/device"
-                                    className="block w-full text-center bg-slate-700 hover:bg-slate-600 text-white py-1.5 px-3 rounded text-sm transition-colors font-medium"
+                                    className=" w-full flex items-center justify-center text-center bg-slate-700 hover:bg-slate-600 text-white py-1.5 px-3 rounded text-sm transition-colors font-medium"
                                     onClick={(e) => e.stopPropagation()}
                                  >
-                                    Manage Device
+                                    <WatchIcon className='mr-2 size-4' />Manage Device
                                  </Link>
                               </div>
                            </div>
@@ -154,12 +159,12 @@ const Header = () => {
                               {/* Popup Content */}
                               <div className="p-4">
                                  <div className="mb-4 space-y-2">
-                                    <p className="text-gray-200 flex justify-between">
-                                       <span className="text-gray-400">Device name:</span>
-                                       <span className="font-medium">{deviceInfo.name}</span>
+                                    <p className="text-gray-200 flex gap-2">
+                                       <span className="text-gray-400 ">Device:</span>
+                                       <span className="font-medium truncate">{deviceInfo.name}</span>
                                     </p>
-                                    <p className="text-gray-200 flex justify-between">
-                                       <span className="text-gray-400">SSID name:</span>
+                                    <p className="text-gray-200 flex gap-2">
+                                       <span className="text-gray-400">SSID:</span>
                                        <span className="font-medium">{deviceInfo.ssid}</span>
                                     </p>
                                  </div>
@@ -168,9 +173,9 @@ const Header = () => {
                                  <button
                                     data-manage-device="true"
                                     onClick={handleManageDevice}
-                                    className="block w-full text-center bg-slate-700 hover:bg-slate-600 text-white py-2 px-4 rounded transition-colors font-medium"
+                                    className="justify-center w-full text-center flex items-center bg-slate-700 hover:bg-slate-600 text-white py-2 px-4 rounded transition-colors font-medium"
                                  >
-                                    Manage Device
+                                    <WatchIcon className='mr-2' />Manage Device
                                  </button>
                               </div>
                            </div>

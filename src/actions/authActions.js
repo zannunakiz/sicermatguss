@@ -1,3 +1,5 @@
+import { saveCredentials, saveToken } from "./creds";
+
 export async function authSignIn(userData) {
    const res = await fetch(`${process.env.REACT_APP_API}/auth/login`, {
       method: 'POST',
@@ -7,8 +9,12 @@ export async function authSignIn(userData) {
       body: JSON.stringify(userData),
    });
 
+   const { content } = await res.json()
+
    if (res.ok) {
-      return res.data?.token
+      await saveCredentials(content.user_data);
+      await saveToken(content.token);
+      return true
    } else {
       return false
    }

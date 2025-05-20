@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import HeartRate from '../../components/HeartRate';
-
+import ResetDialog from '../../components/ResetDialog';
+import { usePairedDevice } from '../../context/PairedDeviceContext';
+import { useToast } from "../../context/ToastContext";
 const Jump = ({ fetchData }) => {
 
    const [jumpCount, setJumpCount] = useState(0);
@@ -9,6 +11,7 @@ const Jump = ({ fetchData }) => {
    const [timeElapsedJump, setTimeElapsedJump] = useState(0);
    const [allJumpData, setAllJumpData] = useState([]);
    const [isFetching, setIsFetching] = useState(false);
+   const [resetDialog, setResetDialog] = useState(false)
 
    // Refs for chart instances and DOM elements
    const jumpGaugeRef = useRef(null);
@@ -16,6 +19,37 @@ const Jump = ({ fetchData }) => {
    const heightChartRef = useRef(null);
    const strJumpRef = useRef(null);
    const rstJumpRef = useRef(null);
+
+   const toast = useToast()
+   const { pairedDevice } = usePairedDevice()
+   const intervalRef = useRef(null);
+
+   const startExercise = () => {
+      if (pairedDevice.name === "") {
+         toast.error("No device connected");
+         return;
+      }
+
+      setIsFetching(prev => {
+         const nextState = !prev;
+
+         toast.normal(`Jump Exercise ${nextState ? "Started" : "Paused"}`);
+
+         // Kalau mulai (ON)
+         if (nextState) {
+            fetchData("jump");
+            intervalRef.current = setInterval(() => {
+               fetchData("jump");
+            }, 500);
+         } else {
+            // Kalau berhenti (OFF)
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+         }
+
+         return nextState;
+      });
+   };
 
    // Initialize charts on component mount
    useEffect(() => {
@@ -110,11 +144,12 @@ const Jump = ({ fetchData }) => {
       setMaxHeight(prev => Math.max(prev, jumpHeight));
       setTimeElapsedJump(prev => prev + 1);
 
-      // Update gauge
-      jumpGaugeRef.current.options({
-         series: [{ points: ['score', [1, jumpHeight]] }]
-      });
 
+      jumpGaugeRef.current.options({
+         series: [{
+            points: [['score', [1, jumpHeight]]],
+         }]
+      })
       // Update line chart
       const chart = jumpChartRef.current;
       if (timeElapsedJump > 10) {
@@ -129,11 +164,7 @@ const Jump = ({ fetchData }) => {
    }, [timeElapsedJump])
 
    // Button handlers
-   const startExercise = () => {
-      setIsFetching(prev => !prev);
 
-      fetchData("jump")
-   };
 
    const resetExercise = () => {
       setJumpCount(0);
@@ -142,11 +173,14 @@ const Jump = ({ fetchData }) => {
       setTimeElapsedJump(0);
       setIsFetching(false);
       setAllJumpData([]);
+      clearInterval(intervalRef.current);
 
-      // Reset gauge
+
       jumpGaugeRef.current.options({
-         series: [{ points: ['score', [1, 1]] }]
-      });
+         series: [{
+            points: [['score', [1, 1]]],
+         }]
+      })
 
       // Reset line chart
       const chart = jumpChartRef.current;
@@ -154,6 +188,7 @@ const Jump = ({ fetchData }) => {
       chart.data.datasets[0].data = [];
       chart.update();
    };
+
 
    // Export data
    const exportData = () => {
@@ -177,7 +212,7 @@ const Jump = ({ fetchData }) => {
 
       const interval = setInterval(() => {
          updateData({
-            jumpHeight: Math.random() * 10 // Simulate jump height data
+            jumpHeight: Math.floor(Math.random() * 10) // Simulate jump height data
          });
       }, 1000);
 
@@ -185,7 +220,7 @@ const Jump = ({ fetchData }) => {
    }, [isFetching, timeElapsedJump, updateData]);
 
    return (
-      <section id="jump-content border-2 border-red-500">
+      <section id="jump-content" className='overflow-x-hidden'>
          <div className="container dashboard-container" id="jump-training">
             <h1 className="dashboard-title">Vertical Jump Exercise Dashboard</h1>
             <h4 className="dashboard-subtitle text-center text-white mb-10">
@@ -206,7 +241,7 @@ const Jump = ({ fetchData }) => {
                      ref={rstJumpRef}
                      id="rst-jump"
                      className="rst-btn"
-                     onClick={resetExercise}
+                     onClick={() => setResetDialog(true)}
                   >
                      Reset
                   </button>
@@ -231,8 +266,8 @@ const Jump = ({ fetchData }) => {
                         <div className="flex max-w-[200px] w-[100%] mt-[-5px] justify-around items-center">
                            <div id="jumpHeightGauge" className="my-0 items-center justify-center flex w-[50%]"></div>
                            <div className="card-text my-0 !text-[1.2rem] flex flex-col gap-2">
-                              <p>{currentHeight.toFixed(2)} m</p>
-                              <p>{(currentHeight * 100).toFixed(0)} cm</p>
+                              <p>{currentHeight} cm</p>
+                              <p>{(currentHeight * 10).toFixed(0)} mm</p>
                            </div>
                         </div>
                      </div>
@@ -271,6 +306,14 @@ const Jump = ({ fetchData }) => {
 
          <hr className='h-[3px] bg-blue-500 mt-20 mb-10'></hr>
          <HeartRate />
+
+         {resetDialog &&
+            <ResetDialog
+               isOpen={resetDialog}
+               onClose={() => setResetDialog(false)}
+               onSubmit={resetExercise}
+            />
+         }
       </section>
    );
 };
