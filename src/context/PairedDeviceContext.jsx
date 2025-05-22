@@ -21,6 +21,14 @@ export const PairedDeviceProvider = ({ children }) => {
             console.error("Failed to parse saved device:", e);
          }
       }
+      else {
+         setPairedDevice({
+            device_uuid: "",
+            name: "",
+            ssid: "",
+            password: ""
+         });
+      }
    }, []);
 
    const updatePairedDevice = (data) => {

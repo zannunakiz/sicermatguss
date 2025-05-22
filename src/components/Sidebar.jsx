@@ -4,10 +4,12 @@ import {
    LightbulbIcon,
    LogOut,
    WatchIcon,
+   Wifi,
    X
 } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { removeAuth } from '../actions/creds';
 import LogoutDialog from './LogoutDialog'; // import komponen dialog loh yaa
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -24,12 +26,12 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
    const menuItems = [
       { name: 'Devices', path: '/menus/device', icon: WatchIcon },
+      { name: "Network", path: '/menus/wifi', icon: Wifi },
       { name: 'History', path: '/menus/history', icon: History },
    ];
 
-   const handleConfirmLogout = async () => {
-      await localStorage.removeItem('token');
-      await localStorage.removeItem('credentials');
+   const handleConfirmLogout = () => {
+      removeAuth()
       setShowLogoutDialog(false);
       window.location.href = '/';
    };

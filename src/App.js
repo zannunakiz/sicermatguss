@@ -13,6 +13,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import Device from './pages/Menus/Device';
 import History from './pages/Menus/History';
+import WifiManager from "./pages/Menus/WifiManager";
 
 const App = () => {
   const location = useLocation();
@@ -34,6 +35,12 @@ const App = () => {
           <Route path="/menus/device" element={
             <ProtectedRoute>
               <Device />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/menus/wifi" element={
+            <ProtectedRoute>
+              <WifiManager />
             </ProtectedRoute>
           } />
 

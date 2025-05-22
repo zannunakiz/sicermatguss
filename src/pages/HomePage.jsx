@@ -1,4 +1,4 @@
-import { Dumbbell, History, Laptop } from "lucide-react"
+import { Dumbbell, History, Laptop, Wifi } from "lucide-react"
 import { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { checkAuth, getToken } from "../actions/creds"
@@ -51,6 +51,12 @@ const HomePage = () => {
          description: "Change your device settings and connect to your smart device.",
          icon: Laptop,
          to: "/menus/device",
+      },
+      {
+         title: "Network Manager",
+         description: "Configure list of networks SSID for device to connect.",
+         icon: Wifi,
+         to: "/menus/wifi"
       },
       {
          title: "History",

@@ -26,6 +26,7 @@ const ExerciseCard = ({ title, description, icon: Icon, to }) => {
       if (["jumps", "squats"].includes(lowerTitle)) return "Stamina"
       if (["punches"].includes(lowerTitle)) return "Strength"
       if (["history"].includes(lowerTitle)) return "Progress"
+      if (["network manager", "connect device"].includes(lowerTitle)) return "Connection"
       return "Unknown"
    }
 
@@ -54,7 +55,7 @@ const ExerciseCard = ({ title, description, icon: Icon, to }) => {
                   <span
                      className={`inline-block px-2 py-1 mt-2 text-xs font-medium text-white rounded-full ${getCategoryColor(title)}`}
                   >
-                     {title !== "Connect Device" ? getCategoryLabel(title) : "Settings"}
+                     {getCategoryLabel(title)}
                   </span>
                </div>
             </div>

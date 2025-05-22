@@ -2,6 +2,7 @@
 import { LogOut, Menu, WatchIcon, Wifi, WifiOff } from 'lucide-react'
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { removeAuth } from '../actions/creds'
 import { usePairedDevice } from '../context/PairedDeviceContext'
 import LogoutDialog from './LogoutDialog'
 import Sidebar from './Sidebar'
@@ -22,8 +23,7 @@ const Header = () => {
    }
 
    const handleConfirmLogout = async () => {
-      await localStorage.removeItem('token');
-      await localStorage.removeItem('credentials');
+      removeAuth()
       setShowLogoutDialog(false);
       window.location.href = '/';
    };

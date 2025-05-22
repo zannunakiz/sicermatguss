@@ -33,6 +33,7 @@ export function addAuth(token, credentials) {
 export function removeAuth() {
    localStorage.removeItem('token');
    localStorage.removeItem('credentials');
+   localStorage.removeItem('device');
 }
 
 export function checkAuth() {
