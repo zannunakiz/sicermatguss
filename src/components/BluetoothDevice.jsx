@@ -12,12 +12,17 @@ const BluetoothDevice = () => {
    const [pairedDevices, setPairedDevices] = useState([])
    const [connectedDevice, setConnectedDevice] = useState(null)
    const [characteristics, setCharacteristics] = useState([])
+   const [wifiInputs, setWifiInputs] = useState({});
+   const [showWifiModal, setShowWifiModal] = useState(false);
+   const [wifiCredentials, setWifiCredentials] = useState({});
+   const [connectingDevice, setConnectingDevice] = useState(null); // Untuk simpan device sementara
 
    // Access the device context
    const { updatePairedDevice } = usePairedDevice()
 
-   const BLE_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-   const BLE_CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+   const CUSTOM_SERVICE_UUID = "c93138c5-5259-4c29-bb5e-750f55cc9a71";
+   const TX_CHARACTERISTIC_UUID = "ac38898f-55fd-4e3d-9380-dddce7d0901b";
+   const RX_CHARACTERISTIC_UUID = "55145f14-e7d6-4282-add9-62134c57dc6a";
 
    const toast = useToast()
 
@@ -34,6 +39,84 @@ const BluetoothDevice = () => {
       return true
    }
 
+   const handleSendWifi = async (e) => {
+      e.preventDefault();
+
+      if (!wifiCredentials.ssid || !wifiCredentials.password) {
+         toast.warn("Please enter both SSID and Password");
+         return;
+      }
+
+      const { ssid, password } = wifiCredentials;
+      try {
+         console.log("Connecting to GATT server...");
+         const server = await connectingDevice.device.gatt.connect();
+
+         console.log("Getting service...");
+         const service = await server.getPrimaryService(CUSTOM_SERVICE_UUID);
+
+         console.log("Getting TX & RX Characteristics...");
+         const txChar = await service.getCharacteristic(TX_CHARACTERISTIC_UUID);
+         const rxChar = await service.getCharacteristic(RX_CHARACTERISTIC_UUID);
+
+         // TODO: Read response dari ESP32 buat konfirm kalau cred yang dikirim udah OK
+         const onCharacteristicChanged = (event) => {
+            const value = event.target.value;
+            const decoder = new TextDecoder();
+            const response = decoder.decode(value.buffer);
+
+            console.log(`Received response: ${response}`);
+
+            if (response === "WIFI_OK") {
+               toast.success("✅ WiFi credentials accepted by device!");
+
+               
+               console.log(JSON.stringify(connectedDevice))
+               // Simpan info paired device
+               setConnectedDevice({
+                  id: connectingDevice.id,
+                  name: connectingDevice.name
+               });
+
+               console.log(JSON.stringify(connectedDevice))
+
+               
+               console.log(JSON.stringify(pairedDevices))
+               updatePairedDevice({
+                  device_uuid: connectingDevice.name,
+                  name: connectingDevice.name,
+                  ssid,
+                  password
+               });
+               console.log(JSON.stringify(pairedDevices))
+
+               setShowWifiModal(false);
+               setConnectingDevice(null);
+            } else if (response === "WIFI_FAIL") {
+               toast.error("❌ Failed to connect to WiFi. Please check credentials.");
+               setShowWifiModal(true); // Tetap tampilkan form untuk input ulang
+            }
+
+            // Hapus listener setelah dapat balasan
+            txChar.removeEventListener("characteristicvaluechanged", onCharacteristicChanged);
+         };
+
+         txChar.addEventListener("characteristicvaluechanged", onCharacteristicChanged);
+         await txChar.startNotifications(); // Aktifkan notifikasi
+
+         // 📤 Kirim data WiFi ke ESP32
+         const encoder = new TextEncoder();
+         const wifiData = JSON.stringify({ ssid, password });
+         await rxChar.writeValueWithoutResponse(encoder.encode(wifiData));
+
+         toast.normal("🔄 Waiting for ESP32 confirmation...");
+
+      } catch (error) {
+         console.error("Error sending WiFi data:", error);
+         toast.error("Failed to send WiFi credentials");
+      }
+   };
+
    const scanForDevices = async () => {
       if (!checkBluetoothSupport()) return
 
@@ -41,9 +124,12 @@ const BluetoothDevice = () => {
          setIsScanning(true)
 
          const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: [BLE_SERVICE_UUID],
+            filters: [{ services: [CUSTOM_SERVICE_UUID] }],
          })
+         // const device = await navigator.bluetooth.requestDevice({
+         //    acceptAllDevices: true,
+         //    optionalServices: [BLE_SERVICE_UUID],
+         // })
 
          if (device) {
             const newDevice = {
@@ -69,46 +155,42 @@ const BluetoothDevice = () => {
 
    const connectToDevice = async (deviceInfo) => {
       try {
-         setIsPairing(true)
-         setPairingDeviceId(deviceInfo.id)
+         setIsPairing(true);
+         setPairingDeviceId(deviceInfo.id);
 
-         const device = deviceInfo.device
-         console.log("Connecting to BLE device:", device.name)
+         const device = deviceInfo.device;
+         console.log("Connecting to BLE device:", deviceInfo.name);
 
-         const server = await device.gatt.connect()
-         try {
-            const service = await server.getPrimaryService(BLE_SERVICE_UUID)
+         const server = await device.gatt.connect();
+         const service = await server.getPrimaryService(CUSTOM_SERVICE_UUID);
+         
+         const txChar = await service.getCharacteristic(TX_CHARACTERISTIC_UUID);
+         const rxChar = await service.getCharacteristic(RX_CHARACTERISTIC_UUID);
 
-            const chars = await service.getCharacteristics()
-            setCharacteristics(chars)
+         console.log(`rxChar properties: ${JSON.stringify(rxChar.properties)}`);
 
-            setConnectedDevice(deviceInfo)
+         // Baca UUID dari ESP32
+         const value = await txChar.readValue();
+         const deviceUUID = JSON.parse(new TextDecoder().decode(value)).device_uuid;
 
-            toast.success(`Successfully connected to ${device.name}`)
+         // Simpan device sementara dan tampilkan modal WiFi
+         setConnectingDevice({
+            id: device.id,
+            name: deviceUUID,
+            device: device,
+            service: service,
+            rxChar: rxChar
+         });
 
-            setPairedDevices((prev) => {
-               if (!prev.includes(deviceInfo.id)) {
-                  return [...prev, deviceInfo.id]
-               }
-               return prev
-            })
+         setIsPairing(false);
+         setShowWifiModal(true);
 
-            updatePairedDevice({
-               device_uuid: device.name,
-               name: device.name,
-               ssid: "dummy",
-               password: "dummy",
-            })
-         } catch (error) {
-            console.error("Error accessing BLE service:", error)
-         }
       } catch (error) {
-         console.error("Error connecting to BLE device:", error)
-      } finally {
-         setIsPairing(false)
-         setPairingDeviceId(null)
+         console.error("Error connecting to BLE device:", error);
+         toast.error("Failed to connect or read device info");
+         setIsPairing(false);
       }
-   }
+   };
 
    const sendDataToBLE = async (data) => {
       if (!connectedDevice) return
@@ -245,45 +327,103 @@ const BluetoothDevice = () => {
 
                   {/* Connected Device Section */}
                   {connectedDevice && (
-                     <div className="bg-slate-800 rounded-lg shadow-lg overflow-hidden mb-6">
-                        <div className="px-6 py-4 bg-slate-700 border-b border-slate-600">
-                           <h2 className="text-xl font-semibold text-gray-100">Connected Device</h2>
-                        </div>
-                        <div className="p-6">
-                           <div className="flex items-center justify-between mb-4">
-                              <div>
-                                 <h3 className="text-lg font-medium text-gray-100">{connectedDevice.name}</h3>
-                                 <p className="text-sm text-gray-400">BLE Device</p>
-                              </div>
-                              <div className="flex items-center gap-1 bg-green-900/30 text-green-400 text-xs px-2 py-1 rounded-full">
-                                 <CheckCircle2 size={12} />
-                                 <span>Connected</span>
-                              </div>
-                           </div>
-
-                           <div className="flex flex-wrap gap-2 mt-4">
-                              <button
-                                 onClick={() => readDataFromBLE()}
-                                 className="text-sm font-medium text-white bg-slate-700 py-1.5 px-4 rounded shadow hover:bg-slate-600 transition-colors duration-300"
-                              >
-                                 Read Data
-                              </button>
-                              <button
-                                 onClick={() => sendDataToBLE("Hello BLE Device")}
-                                 className="text-sm font-medium text-white bg-slate-700 py-1.5 px-4 rounded shadow hover:bg-slate-600 transition-colors duration-300"
-                              >
-                                 Send Data
-                              </button>
-                              <button
-                                 onClick={disconnectDevice}
-                                 className="text-sm font-medium text-white bg-red-700 py-1.5 px-4 rounded shadow hover:bg-red-600 transition-colors duration-300"
-                              >
-                                 Disconnect
-                              </button>
-                           </div>
-                        </div>
+                     <div className="bg-slate-800 rounded-lg shadow-lg overflow-hidden mb-6 p-6">
+                        <h3 className="text-lg font-medium text-gray-100">Enter WiFi Credentials</h3>
+                        <form onSubmit={(e) => handleSendWifi(e, connectedDevice)} className="mt-4 space-y-3">
+                           <input
+                              type="text"
+                              placeholder="SSID"
+                              value={wifiInputs[connectedDevice.id]?.ssid || ''}
+                              onChange={(e) =>
+                                 setWifiInputs({
+                                    ...wifiInputs,
+                                    [connectedDevice.id]: {
+                                       ...wifiInputs[connectedDevice.id],
+                                       ssid: e.target.value
+                                    }
+                                 })
+                              }
+                              className="w-full px-3 py-2 bg-slate-700 text-white rounded"
+                              required
+                           />
+                           <input
+                              type="password"
+                              placeholder="Password"
+                              value={wifiInputs[connectedDevice.id]?.password || ''}
+                              onChange={(e) =>
+                                 setWifiInputs({
+                                    ...wifiInputs,
+                                    [connectedDevice.id]: {
+                                       ...wifiInputs[connectedDevice.id],
+                                       password: e.target.value
+                                    }
+                                 })
+                              }
+                              className="w-full px-3 py-2 bg-slate-700 text-white rounded"
+                              required
+                           />
+                           <button
+                              type="submit"
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                           >
+                              Send WiFi Data
+                           </button>
+                        </form>
                      </div>
                   )}
+
+                  {/* Send WiFi Modal */}
+                  {showWifiModal && (
+                  <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+                     <div className="bg-slate-800 rounded-lg p-6 w-[400px] shadow-xl">
+                        <h3 className="text-lg font-semibold text-white mb-4">Enter WiFi Credentials</h3>
+                        <form onSubmit={handleSendWifi}>
+                           <div className="mb-4">
+                              <label className="block text-gray-300 text-sm mb-1">SSID</label>
+                              <input
+                                 type="text"
+                                 required
+                                 className="w-full px-3 py-2 bg-slate-700 text-white rounded"
+                                 placeholder="WiFi Name"
+                                 onChange={(e) =>
+                                    setWifiCredentials({ ...wifiCredentials, ssid: e.target.value })
+                                 }
+                              />
+                           </div>
+                           <div className="mb-6">
+                              <label className="block text-gray-300 text-sm mb-1">Password</label>
+                              <input
+                                 type="password"
+                                 required
+                                 className="w-full px-3 py-2 bg-slate-700 text-white rounded"
+                                 placeholder="WiFi Password"
+                                 onChange={(e) =>
+                                    setWifiCredentials({ ...wifiCredentials, password: e.target.value })
+                                 }
+                              />
+                           </div>
+                           <div className="flex justify-end gap-3">
+                              <button
+                                 type="button"
+                                 onClick={() => {
+                                    setShowWifiModal(false);
+                                    setConnectingDevice(null);
+                                 }}
+                                 className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded"
+                              >
+                                 Cancel
+                              </button>
+                              <button
+                                 type="submit"
+                                 className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded"
+                              >
+                                 Send WiFi Data
+                              </button>
+                           </div>
+                        </form>
+                     </div>
+                  </div>
+               )}
 
                   {/* Nearby Devices Section */}
                   <div className="bg-slate-800 rounded-lg shadow-lg overflow-hidden">
