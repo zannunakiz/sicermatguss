@@ -1,0 +1,13 @@
+// handlers/receiveSportReadings.js
+export function handle(data) {
+   if (data.type === 'punch') {
+      const punchData = {
+         punchPower: data.power || 0,
+         retractionTime: data.retraction_time || 0,
+      };
+
+      if (typeof window.handlePunchData === 'function') {
+         window.handlePunchData(punchData);
+      }
+   }
+}
