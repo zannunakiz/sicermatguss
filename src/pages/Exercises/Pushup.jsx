@@ -5,7 +5,7 @@ import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
 import { sendWSMessage } from '../../lib/wsClient';
 
-const Pushup = ({ fetchData }) => {
+const Pushup = () => {
    // State variables
    const [pushUpCount, setPushUpCount] = useState(0);
    const [pushUpSet, setPushUpSet] = useState(0);
@@ -63,6 +63,7 @@ const Pushup = ({ fetchData }) => {
             // }, 500);
          } else {
             // Kalau berhenti (OFF)
+            sendWSMessage({ type: "save_session", data: { sport_type: "pushup" } });
             clearInterval(intervalRef.current);
             intervalRef.current = null;
          }
@@ -172,7 +173,7 @@ const Pushup = ({ fetchData }) => {
 const updateData = useCallback((data) => {
    if (!isFetching) return;
 
-   const detectedPushups = data.pushupCount || 1; // Contoh format data dari backend
+   const detectedPushups = data.pushupCount || 1; // TODO: Make sure this is correct
 
    setPushUpCount(prev => prev + detectedPushups);
    setPushUpSet(prev => prev + detectedPushups);

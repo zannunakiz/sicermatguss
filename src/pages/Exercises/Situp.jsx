@@ -3,8 +3,9 @@ import HeartRate from '../../components/HeartRate';
 import ResetDialog from '../../components/ResetDialog';
 import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
+import { sendWSMessage } from '../../lib/wsClient';
 
-const Situp = ({ fetchData }) => {
+const Situp = () => {
    // State variables
    const [situpCount, setSitupCount] = useState(0);
    const [situpSet, setSitupSet] = useState(0);
@@ -55,12 +56,15 @@ const Situp = ({ fetchData }) => {
 
          // Kalau mulai (ON)
          if (nextState) {
-            fetchData("situp");
-            intervalRef.current = setInterval(() => {
-               fetchData("situp");
-            }, 500);
+            const device = JSON.parse(localStorage.getItem("device") || "{}");
+            sendWSMessage({ type: "start_session", data: { sport_type: "situp", device_uuid: device.uuid } });
+            // fetchData("situp");
+            // intervalRef.current = setInterval(() => {
+            //    fetchData("situp");
+            // }, 500);
          } else {
             // Kalau berhenti (OFF)
+            sendWSMessage({ type: "save_session", data: { sport_type: "situp" } });
             clearInterval(intervalRef.current);
             intervalRef.current = null;
          }
@@ -166,24 +170,34 @@ const Situp = ({ fetchData }) => {
    };
 
    // Update data function
-   const updateData = useCallback(() => {
+   const updateData = useCallback((data) => {
       if (!isFetching) return;
 
-      const situpOneSec = Math.floor(Math.random() * 3) + 1;
-      setSitupCount(prev => prev + situpOneSec);
-      setSitupSet(prev => prev + situpOneSec);
+      const detectedSitup = data.situpCount || 1;
+      // const situpOneSec = Math.floor(Math.random() * 3) + 1;
+      setSitupCount(prev => prev + detectedSitup);
+      setSitupSet(prev => prev + detectedSitup);
 
-      // Track sit-up intervals
-      if (situpOneSec > 0) {
-         const currentTime = timeElapsedSitup;
-         if (lastSitupTimeRef.current > 0) {
-            const interval = currentTime - lastSitupTimeRef.current;
-            situpIntervalsRef.current.push(interval);
-         }
-         lastSitupTimeRef.current = currentTime;
+      const currentTime = timeElapsedSitup;
+
+      if (lastSitupTimeRef.current > 0) {
+         const interval = currentTime - lastSitupTimeRef.current;
+         situpIntervalsRef.current.push(interval);
       }
 
-      setTimeElapsedSitup(prev => prev + 1);
+      lastSitupTimeRef.current = currentTime;
+
+      // // Track sit-up intervals
+      // if (detectedSitup > 0) {
+      //    const currentTime = timeElapsedSitup;
+      //    if (lastSitupTimeRef.current > 0) {
+      //       const interval = currentTime - lastSitupTimeRef.current;
+      //       situpIntervalsRef.current.push(interval);
+      //    }
+      //    lastSitupTimeRef.current = currentTime;
+      // }
+
+      // setTimeElapsedSitup(prev => prev + 1);
 
       // Update chart every 3 seconds
       if (timeElapsedSitup % 3 === 0) {
@@ -216,7 +230,7 @@ const Situp = ({ fetchData }) => {
          allSitupDataRef.current.push({ time: `Time ${timeElapsedSitup}`, speed: situpSet });
          setSitupSet(0);
       }
-   }, [stabilityRate, isFetching, timeElapsedSitup, situpSet, situpIntervalsRef, lastSitupTimeRef]);
+   }, [stabilityRate, isFetching, timeElapsedSitup, situpSet]);
 
    // Exercise control functions
    const resetExercise = () => {
@@ -262,10 +276,21 @@ const Situp = ({ fetchData }) => {
    };
 
    // Simulate data updates
+   // useEffect(() => {
+   //    const interval = setInterval(updateData, 1000);
+   //    return () => clearInterval(interval);
+   // }, [isFetching, timeElapsedSitup, stabilityRate, updateData]);
    useEffect(() => {
-      const interval = setInterval(updateData, 1000);
-      return () => clearInterval(interval);
-   }, [isFetching, timeElapsedSitup, stabilityRate, updateData]);
+      window.handleSitupData = (data) => {
+         console.log(`[Situp] Received data: ${JSON.stringify(data)}`);
+         if (isFetching) {
+            updateData(data);
+         }
+      }
+      return () => {
+         delete window.handleSitupData;
+      };
+   }, [isFetching, updateData]);
 
    return (
       <section id="situp-content" className='overflow-x-hidden'>

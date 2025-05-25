@@ -3,8 +3,9 @@ import HeartRate from '../../components/HeartRate';
 import ResetDialog from '../../components/ResetDialog';
 import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
+import { sendWSMessage } from '../../lib/wsClient';
 
-const Squat = ({ fetchData }) => {
+const Squat = () => {
    // State variables
    const [squatCount, setSquatCount] = useState(0);
    const [squatSet, setSquatSet] = useState(0);
@@ -53,12 +54,15 @@ const Squat = ({ fetchData }) => {
 
          // Kalau mulai (ON)
          if (nextState) {
-            fetchData("squat");
-            intervalRef.current = setInterval(() => {
-               fetchData("squat");
-            }, 500);
+            const device = JSON.parse(localStorage.getItem("device") || "{}");
+            sendWSMessage({ type: "start_session", data: { sport_type: "squat", device_uuid: device.uuid } });
+            // fetchData("squat");
+            // intervalRef.current = setInterval(() => {
+            //    fetchData("squat");
+            // }, 500);
          } else {
             // Kalau berhenti (OFF)
+            sendWSMessage({ type: "save_session", data: { sport_type: "squat" } });
             clearInterval(intervalRef.current);
             intervalRef.current = null;
          }
@@ -165,24 +169,32 @@ const Squat = ({ fetchData }) => {
    };
 
    // Update data function
-   const updateData = useCallback(() => {
+   const updateData = useCallback((data) => {
       if (!isFetching) return;
 
-      const squatOneSec = Math.floor(Math.random() * 3) + 1;
-      setSquatCount(prev => prev + squatOneSec);
-      setSquatSet(prev => prev + squatOneSec);
+      const detectedSquat = data.squat || 1; // TODO: maske sure this logic is correct
+
+      // const squatOneSec = Math.floor(Math.random() * 3) + 1;
+      setSquatCount(prev => prev + detectedSquat);
+      setSquatSet(prev => prev + detectedSquat);
+
+      const currentTime = timeElapsedSquat
 
       // Track squat intervals
-      if (squatOneSec > 0) {
-         const currentTime = timeElapsedSquat;
-         if (lastSquatTimeRef.current > 0) {
-            const interval = currentTime - lastSquatTimeRef.current;
-            squatIntervalsRef.current.push(interval);
-         }
-         lastSquatTimeRef.current = currentTime;
-      }
+      // if (detectedSquat > 0) {
+      //    const currentTime = timeElapsedSquat;
+      //    if (lastSquatTimeRef.current > 0) {
+      //       const interval = currentTime - lastSquatTimeRef.current;
+      //       squatIntervalsRef.current.push(interval);
+      //    }
+      //    lastSquatTimeRef.current = currentTime;
+      // }
 
-      setTimeElapsedSquat(prev => prev + 1);
+      if (lastSquatTimeRef.current > 0) {
+         const interval = currentTime - lastSquatTimeRef.current;
+         squatIntervalsRef.current.push(interval);
+      }
+      lastSquatTimeRef.current = currentTime;
 
       // Update chart every 3 seconds
       if (timeElapsedSquat % 3 === 0) {
@@ -217,7 +229,17 @@ const Squat = ({ fetchData }) => {
       }
    }, [stabilityRate, timeElapsedSquat, isFetching, squatSet]);
 
-
+   useEffect(() => {
+      window.handleSquatData = (data) => {
+         console.log(`[Squat] Received data: ${JSON.stringify(data)}`);
+         if (isFetching) {
+            updateData(data);
+         }
+      }
+      return () => {
+         delete window.handleSquatData;
+      }
+   }, [isFetching, updateData])
 
    const resetExercise = () => {
       setSquatCount(0);
@@ -263,10 +285,24 @@ const Squat = ({ fetchData }) => {
    };
 
    // Simulate data updates
+   // useEffect(() => {
+   //    const interval = setInterval(updateData, 1000);
+   //    return () => clearInterval(interval);
+   // }, [isFetching, timeElapsedSquat, stabilityRate, updateData]);
    useEffect(() => {
-      const interval = setInterval(updateData, 1000);
-      return () => clearInterval(interval);
-   }, [isFetching, timeElapsedSquat, stabilityRate, updateData]);
+      let interval = null;
+
+      if (isFetching){
+         interval = setInterval(() => {
+            setTimeElapsedSquat(prev => prev + 1);
+         }, 1000);
+      } else {
+         setTimeElapsedSquat(0);
+      }
+      return () => {
+         if (interval) clearInterval(interval)
+      }
+   }, [isFetching]);
 
    return (
       <section id="squat-content" className='overflow-x-hidden'>

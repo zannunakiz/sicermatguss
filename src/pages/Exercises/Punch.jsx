@@ -58,8 +58,8 @@ const Punch = () => {
          } else {
             // Kalau berhenti (OFF)
             sendWSMessage({ type: "save_session", data: { sport_type: "punch" } });
-            // clearInterval(intervalRef.current);
-            // intervalRef.current = null;
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
          }
 
          return nextState;
