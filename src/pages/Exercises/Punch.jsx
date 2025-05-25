@@ -3,8 +3,9 @@ import HeartRate from '../../components/HeartRate';
 import ResetDialog from '../../components/ResetDialog';
 import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
+import { sendWSMessage } from '../../lib/wsClient';
 
-const Punch = ({ fetchData }) => {
+const Punch = () => {
    // State variables
    const [punchCount, setPunchCount] = useState(0);
    const [maxPower, setMaxPower] = useState(0);
@@ -48,14 +49,17 @@ const Punch = ({ fetchData }) => {
 
          // Kalau mulai (ON)
          if (nextState) {
-            fetchData("punch");
-            intervalRef.current = setInterval(() => {
-               fetchData("punch");
-            }, 500);
+            const device = JSON.parse(localStorage.getItem("device") || "{}");
+            sendWSMessage({ type: "start_session", data: { sport_type: "punch", device_uuid: device.uuid } });
+            // fetchData("punch");
+            // intervalRef.current = setInterval(() => {
+            //    fetchData("punch");
+            // }, 500);
          } else {
             // Kalau berhenti (OFF)
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+            sendWSMessage({ type: "save_session", data: { sport_type: "punch" } });
+            // clearInterval(intervalRef.current);
+            // intervalRef.current = null;
          }
 
          return nextState;
@@ -254,18 +258,31 @@ const Punch = ({ fetchData }) => {
    };
 
    // Simulate data updates when fetching
+   // useEffect(() => {
+   //    if (!isFetching) return;
+
+   //    const interval = setInterval(() => {
+   //       updateData({
+   //          punchPower: Math.floor(Math.random() * 100),
+   //          retractionTime: Math.floor(Math.random() * 100)
+   //       });
+   //    }, 1000);
+
+   //    return () => clearInterval(interval);
+   // }, [isFetching, timeElapsedPunch, updateData]);
+
    useEffect(() => {
-      if (!isFetching) return;
+      window.handlePunchData = (data) => {
+         console.log(`[Punch] Received data: ${JSON.stringify(data)}`);
+         if (isFetching) {
+            updateData(data);
+         }
+      };
 
-      const interval = setInterval(() => {
-         updateData({
-            punchPower: Math.floor(Math.random() * 100),
-            retractionTime: Math.floor(Math.random() * 100)
-         });
-      }, 1000);
-
-      return () => clearInterval(interval);
-   }, [isFetching, timeElapsedPunch, updateData]);
+      return () => {
+         delete window.handlePunchData;
+      };
+   }, [isFetching, updateData]);
 
    return (
       <section id="punch-content" className='overflow-x-hidden'>

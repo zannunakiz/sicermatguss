@@ -3,6 +3,7 @@ import HeartRate from '../../components/HeartRate';
 import ResetDialog from '../../components/ResetDialog';
 import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
+import { sendWSMessage } from '../../lib/wsClient';
 
 const Pushup = ({ fetchData }) => {
    // State variables
@@ -54,10 +55,12 @@ const Pushup = ({ fetchData }) => {
 
          // Kalau mulai (ON)
          if (nextState) {
-            fetchData("Pushup");
-            intervalRef.current = setInterval(() => {
-               fetchData("Pushup");
-            }, 500);
+            const device = JSON.parse(localStorage.getItem("device") || "{}");
+            sendWSMessage({ type: "start_session", data: { sport_type: "pushup", device_uuid: device.uuid } });
+            // fetchData("Pushup");
+            // intervalRef.current = setInterval(() => {
+            //    fetchData("Pushup");
+            // }, 500);
          } else {
             // Kalau berhenti (OFF)
             clearInterval(intervalRef.current);
@@ -166,58 +169,62 @@ const Pushup = ({ fetchData }) => {
    };
 
    // Update data function
-   const updateData = useCallback(() => {
-      if (!isFetching) return;
+const updateData = useCallback((data) => {
+   if (!isFetching) return;
 
-      const pushUpOneSec = Math.floor(Math.random() * 3) + 1;
-      setPushUpCount(prev => prev + pushUpOneSec);
-      setPushUpSet(prev => prev + pushUpOneSec);
+   const detectedPushups = data.pushupCount || 1; // Contoh format data dari backend
 
-      // Track push-up intervals
-      if (pushUpOneSec > 0) {
-         const currentTime = timeElapsedPushup;
-         if (lastPushupTimeRef.current > 0) {
-            const interval = currentTime - lastPushupTimeRef.current;
-            pushupIntervalsRef.current.push(interval);
-         }
-         lastPushupTimeRef.current = currentTime;
+   setPushUpCount(prev => prev + detectedPushups);
+   setPushUpSet(prev => prev + detectedPushups);
+
+   const currentTime = timeElapsedPushup;
+
+   if (lastPushupTimeRef.current > 0) {
+      const interval = currentTime - lastPushupTimeRef.current;
+      pushupIntervalsRef.current.push(interval);
+   }
+   lastPushupTimeRef.current = currentTime;
+
+   // Update chart every 3 seconds
+   if (currentTime % 3 === 0) {
+      pushupGaugeRef.current.set(pushUpSet);
+
+      if (pushupIntervalsRef.current.length > 1) {
+         const avgInterval = pushupIntervalsRef.current.reduce((a, b) => a + b, 0) / pushupIntervalsRef.current.length;
+         const stableIntervals = pushupIntervalsRef.current.filter(interval =>
+            Math.abs(interval - avgInterval) <= 0.5
+         );
+         const newStabilityRate = Math.round((stableIntervals.length / pushupIntervalsRef.current.length) * 100);
+         setStabilityRate(newStabilityRate);
       }
 
-      setTimeElapsedPushup(prev => prev + 1);
-
-      // Update chart every 3 seconds
-      if (timeElapsedPushup % 3 === 0) {
-         pushupGaugeRef.current.set(pushUpSet);
-
-         // Calculate stability rate
-         if (pushupIntervalsRef.current.length > 1) {
-            const avgInterval = pushupIntervalsRef.current.reduce((a, b) => a + b, 0) / pushupIntervalsRef.current.length;
-            const stableIntervals = pushupIntervalsRef.current.filter(interval =>
-               Math.abs(interval - avgInterval) <= 0.5
-            );
-            const newStabilityRate = Math.round((stableIntervals.length / pushupIntervalsRef.current.length) * 100);
-            setStabilityRate(newStabilityRate);
-         }
-
-         // Update chart data
-         const chart = pushupChartRef.current;
-         if (timeElapsedPushup > 30) {
-            chart.data.labels.shift();
-            chart.data.datasets.forEach(dataset => {
-               dataset.data.shift();
-            });
-         }
-
-         chart.data.labels.push(`${timeElapsedPushup} Sec`);
-         chart.data.datasets[0].data.push(pushUpSet);
-         chart.data.datasets[1].data.push(stabilityRate / 10);
-         chart.update();
-
-         allPushupDataRef.current.push({ time: `Time ${timeElapsedPushup}`, speed: pushUpSet });
-         setPushUpSet(0);
+      const chart = pushupChartRef.current;
+      if (currentTime > 30) {
+         chart.data.labels.shift();
+         chart.data.datasets.forEach(dataset => dataset.data.shift());
       }
-   }, [timeElapsedPushup, isFetching, pushUpSet, stabilityRate]);
 
+      chart.data.labels.push(`${currentTime} Sec`);
+      chart.data.datasets[0].data.push(pushUpSet);
+      chart.data.datasets[1].data.push(stabilityRate / 10);
+      chart.update();
+
+      allPushupDataRef.current.push({ time: `Time ${currentTime}`, speed: pushUpSet });
+      setPushUpSet(0);
+   }}, [timeElapsedPushup, isFetching, pushUpSet, stabilityRate]);
+
+   useEffect(() => {
+      window.handlePushupData = (data) => {
+         console.log(`[Pushup] Received data: ${JSON.stringify(data)}`);
+         if (isFetching) {
+            updateData(data);
+         }
+      };
+
+      return () => {
+         delete window.handlePushupData;
+      };
+   }, [isFetching, updateData]);
 
 
    const resetExercise = () => {
@@ -262,11 +269,25 @@ const Pushup = ({ fetchData }) => {
       URL.revokeObjectURL(url);
    };
 
-   // Simulate data updates
+   // useEffect(() => {
+   //    const interval = setInterval(updateData, 1000);
+   //    return () => clearInterval(interval);
+   // }, [isFetching, timeElapsedPushup, stabilityRate, updateData]);
    useEffect(() => {
-      const interval = setInterval(updateData, 1000);
-      return () => clearInterval(interval);
-   }, [isFetching, timeElapsedPushup, stabilityRate, updateData]);
+      let interval = null;
+
+      if (isFetching) {
+         interval = setInterval(() => {
+            setTimeElapsedPushup(prev => prev + 1);
+         }, 1000);
+      } else {
+         setTimeElapsedPushup(0); // Reset saat pause/stop
+      }
+
+      return () => {
+         if (interval) clearInterval(interval);
+      };
+   }, [isFetching]);
 
    return (
       <section id="pushup-content" className='overflow-x-hidden'>

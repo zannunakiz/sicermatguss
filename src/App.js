@@ -5,7 +5,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import { fetchData } from "./lib/fetchData";
 
 import Jump from './pages/Exercises/Jump';
-import Pushup from './pages/Exercises/Puhshup';
+import Pushup from './pages/Exercises/Pushup';
 import Punch from './pages/Exercises/Punch';
 import Situp from './pages/Exercises/Situp';
 import Squat from './pages/Exercises/Squat';
