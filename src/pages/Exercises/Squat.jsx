@@ -41,6 +41,7 @@ const Squat = () => {
    const { pairedDevice } = usePairedDevice()
    const intervalRef = useRef(null);
 
+   // TODO: perlu logika buat destroy window.handleSquatData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
@@ -51,20 +52,32 @@ const Squat = () => {
          const nextState = !prev;
          startPauseTime();
          toast.normal(`Squat Exercise ${nextState ? "Started" : "Paused"}`);
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
 
          // Kalau mulai (ON)
          if (nextState) {
-            const device = JSON.parse(localStorage.getItem("device") || "{}");
-            sendWSMessage({ type: "start_session", data: { sport_type: "squat", device_uuid: device.uuid } });
-            // fetchData("squat");
-            // intervalRef.current = setInterval(() => {
-            //    fetchData("squat");
-            // }, 500);
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "squat", device_uuid: device.uuid } });
+            if (notify_status){
+               console.log(`[Squat on] before: ${window.handleSquatData}`);
+               window.handleSquatData = (squatData) => {
+                  console.log(`[Squat] Received data: ${JSON.stringify(squatData)}`);
+                  if (isFetching) {
+                     updateData(squatData);
+                  }
+               }
+               console.log(`[Squat on] after: ${window.handleSquatData}`);
+            }
          } else {
             // Kalau berhenti (OFF)
-            sendWSMessage({ type: "save_session", data: { sport_type: "squat" } });
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "squat", device_uuid: device.device_uuid } });
+            if (!notify_status) toast.error("Failed to send pause_session message");
+            else {
+               toast.normal("Squat Exercise Paused");
+               clearInterval(timerIntervalRef.current);
+               intervalRef.current = null;
+               if (window.handleSquatData) delete window.handleSquatData
+               console.log(`[Squat off] window.handleSquatData: ${window.handleSquatData}`);
+            }
          }
 
          return nextState;
@@ -224,22 +237,29 @@ const Squat = () => {
          chart.data.datasets[1].data.push(stabilityRate / 10);
          chart.update();
 
+         if (window.handleSquatData) delete window.handleSquatData;
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
+         sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "squat"});
+
          allSquatDataRef.current.push({ time: `Time ${timeElapsedSquat}`, speed: squatSet });
          setSquatSet(0);
       }
    }, [stabilityRate, timeElapsedSquat, isFetching, squatSet]);
 
+   const handleSquatData = useCallback((squatData) => {
+      console.log("[Squat] Received data:", squatData);
+
+      if (isFetching){
+         updateData(squatData);
+      }
+   }, [isFetching, updateData]);
+   
    useEffect(() => {
-      window.handleSquatData = (data) => {
-         console.log(`[Squat] Received data: ${JSON.stringify(data)}`);
-         if (isFetching) {
-            updateData(data);
-         }
-      }
+      window.handleSquatData = handleSquatData;
       return () => {
-         delete window.handleSquatData;
+         if (window.handleSquatData) delete window.handleSquatData;
       }
-   }, [isFetching, updateData])
+   }, [handleSquatData]);
 
    const resetExercise = () => {
       setSquatCount(0);

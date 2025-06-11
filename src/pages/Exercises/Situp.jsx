@@ -5,6 +5,7 @@ import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
 import { sendWSMessage } from '../../lib/wsClient';
 
+
 const Situp = () => {
    // State variables
    const [situpCount, setSitupCount] = useState(0);
@@ -43,6 +44,7 @@ const Situp = () => {
    const { pairedDevice } = usePairedDevice()
    const intervalRef = useRef(null);
 
+   // TODO: perlu logika buat destroy window.handleSitupData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
@@ -53,20 +55,36 @@ const Situp = () => {
          const nextState = !prev;
          startPauseTime()
          toast.normal(`Situp Exercise ${nextState ? "Started" : "Paused"}`);
-
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
+            
          // Kalau mulai (ON)
          if (nextState) {
-            const device = JSON.parse(localStorage.getItem("device") || "{}");
-            sendWSMessage({ type: "start_session", data: { sport_type: "situp", device_uuid: device.uuid } });
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "situp", device_uuid: device.uuid } });
+            if (notify_status){
+               console.log(`[Situp on] before: ${window.handleSitupData}`);
+               window.handleSitupData = (situpData) => {
+                  console.log(`[Situp] Received data: ${JSON.stringify(situpData)}`);
+                  if (isFetching) {
+                     updateData(situpData);
+                  }
+               }
+               console.log(`[Situp on] after: ${window.handleSitupData}`);
+            }
             // fetchData("situp");
             // intervalRef.current = setInterval(() => {
             //    fetchData("situp");
             // }, 500);
          } else {
             // Kalau berhenti (OFF)
-            sendWSMessage({ type: "save_session", data: { sport_type: "situp" } });
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "situp", device_uuid: device.device_uuid } });
+            if (!notify_status) toast.error("Failed to pause session")
+            else {
+               toast.normal("Situp Exercise Paused");
+               clearInterval(timerIntervalRef.current);
+               intervalRef.current = null;
+               if (window.handleSitupData) delete window.handleSitupData;
+               console.log(`[Situp off] window.handleSitupData: ${window.handleSitupData}`);
+            }
          }
 
          return nextState;
@@ -227,10 +245,29 @@ const Situp = () => {
          chart.data.datasets[1].data.push(stabilityRate / 10);
          chart.update();
 
+         if (window.handleSitupData) delete window.handleSitupData;
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
+         sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport: "situp"});
+
          allSitupDataRef.current.push({ time: `Time ${timeElapsedSitup}`, speed: situpSet });
          setSitupSet(0);
       }
    }, [stabilityRate, isFetching, timeElapsedSitup, situpSet]);
+
+   const handleSitupData = useCallback((situpData) => {
+      console.log("[Situp] Received data: ", situpData);
+
+      if (isFetching) {
+         updateData(situpData);
+      }
+   }, [isFetching, updateData]);
+
+   useEffect(() => {
+      window.handleSitupData = handleSitupData;
+      return () => {
+         if (window.handleSitupData) delete window.handleSitupData
+      }
+   })
 
    // Exercise control functions
    const resetExercise = () => {

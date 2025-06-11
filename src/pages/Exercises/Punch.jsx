@@ -36,6 +36,7 @@ const Punch = () => {
 
    const intervalRef = useRef(null);
 
+   // TODO: perlu logika buat destroy window.handlePunchData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
@@ -47,19 +48,40 @@ const Punch = () => {
 
          toast.normal(`Punch Exercise ${nextState ? "Started" : "Paused"}`);
 
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
+         console.log(`[Punch] device: ${JSON.stringify(device)}`);
          // Kalau mulai (ON)
          if (nextState) {
-            const device = JSON.parse(localStorage.getItem("device") || "{}");
-            sendWSMessage({ type: "start_session", data: { sport_type: "punch", device_uuid: device.uuid } });
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "punch", device_uuid: device.device_uuid } });
+            if (notify_status){
+               console.log(`[Punch on] before: ${window.handlePunchData}`);
+
+               window.handlePunchData = (punchData) => {
+                  console.log(`[Punch] Received data: ${JSON.stringify(punchData)}`);
+                  if (isFetching) {
+                     updateData(punchData);
+                  }
+               }
+               console.log(`[Punch on] after: ${window.handlePunchData}`);
+            }
             // fetchData("punch");
             // intervalRef.current = setInterval(() => {
             //    fetchData("punch");
             // }, 500);
          } else {
             // Kalau berhenti (OFF)
-            sendWSMessage({ type: "save_session", data: { sport_type: "punch" } });
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+            // sendWSMessage({ type: "save_session", data: { sport_type: "punch" } });
+            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "punch", device_uuid: device.device_uuid } });
+            if (!notify_status){
+               toast.error("Failed to pause session");
+            } else {
+               toast.normal("Punch Exercise Paused");
+               clearInterval(intervalRef.current);
+               intervalRef.current = null;
+               console.log("[Punch] Stopped, window.handlePunchData: ", window.handlePunchData);
+               if (window.handlePunchData) delete window.handlePunchData;
+               console.log(`[Punch] window.handlePunchData: ${window.handlePunchData}`);  
+            }
          }
 
          return nextState;
@@ -173,6 +195,13 @@ const Punch = () => {
       };
    }, []);
 
+   // TODO: May need to be added if necessary
+   // const resetTime = () => {
+   //    clearInterval(timerIntervalRef.current);
+   //    setTime(0);
+   //    setIsRunning(false);
+   // };
+
    // Update data function
    const updateData = useCallback((data) => {
       const { punchPower, retractionTime } = data;
@@ -216,6 +245,26 @@ const Punch = () => {
       chart.update();
    }, [timeElapsedPunch])
 
+   const handlePunchData = useCallback((punchData) => {
+      console.log(`[Punch] Received data: ${JSON.stringify(punchData)}`);
+      
+      if (isFetching) {
+         updateData(punchData);
+      }
+   }, [isFetching, updateData]);
+
+   // ⚡ Langsung assign saat mount
+   useEffect(() => {
+      window.handlePunchData = handlePunchData;
+
+      // Bersihkan saat unmount
+      return () => {
+            if (window.handlePunchData) {
+               delete window.handlePunchData;
+            }
+      };
+   }, [handlePunchData]);
+
    const resetExercise = () => {
       setPunchCount(0);
       setMaxPower(0);
@@ -239,6 +288,14 @@ const Punch = () => {
       chart.data.datasets[0].data = [];
       chart.data.datasets[1].data = [];
       chart.update();
+      // resetTime();
+
+      // Hapus event listener data
+      if (window.handlePunchData){
+         delete window.handlePunchData;
+      }
+      const device = JSON.parse(localStorage.getItem("device") || "{}");
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "punch"});
    };
 
    // Export data
@@ -271,18 +328,18 @@ const Punch = () => {
    //    return () => clearInterval(interval);
    // }, [isFetching, timeElapsedPunch, updateData]);
 
-   useEffect(() => {
-      window.handlePunchData = (data) => {
-         console.log(`[Punch] Received data: ${JSON.stringify(data)}`);
-         if (isFetching) {
-            updateData(data);
-         }
-      };
+   // useEffect(() => {
+   //    window.handlePunchData = (data) => {
+   //       console.log(`[Punch] Received data: ${JSON.stringify(data)}`);
+   //       if (isFetching) {
+   //          updateData(data);
+   //       }
+   //    };
 
-      return () => {
-         delete window.handlePunchData;
-      };
-   }, [isFetching, updateData]);
+   //    return () => {
+   //       delete window.handlePunchData;
+   //    };
+   // }, [isFetching, updateData]);
 
    return (
       <section id="punch-content" className='overflow-x-hidden'>

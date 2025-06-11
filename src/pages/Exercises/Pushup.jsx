@@ -43,6 +43,7 @@ const Pushup = () => {
    const { pairedDevice } = usePairedDevice()
    const intervalRef = useRef(null);
 
+   // TODO: perlu logika buat destroy window.handlePushupData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
@@ -52,20 +53,32 @@ const Pushup = () => {
          const nextState = !prev;
          startPauseTime()
          toast.normal(`Pushup Exercise ${nextState ? "Started" : "Paused"}`);
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
 
          // Kalau mulai (ON)
          if (nextState) {
-            const device = JSON.parse(localStorage.getItem("device") || "{}");
-            sendWSMessage({ type: "start_session", data: { sport_type: "pushup", device_uuid: device.uuid } });
-            // fetchData("Pushup");
-            // intervalRef.current = setInterval(() => {
-            //    fetchData("Pushup");
-            // }, 500);
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "pushup", device_uuid: device.uuid } });
+            if (notify_status){
+               console.log(`[Pushup on] before: ${window.handlePushupData}`);
+               window.handlePushupData = (pushupData) => {
+                  console.log(`[Pushup] Received data: ${JSON.stringify(pushupData)}`);
+                  if (isFetching) {
+                     updateData(pushupData);
+                  }
+               }
+               console.log(`[Pushup on] after: ${window.handlePushupData}`);
+            }
          } else {
-            // Kalau berhenti (OFF)
-            sendWSMessage({ type: "save_session", data: { sport_type: "pushup" } });
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "pushup", device_uuid: device.device_uuid } });
+            if (!notify_status) toast.error("Failed to send pause_session message");
+            else{
+               toast.normal(`Pushup Exercise Paused`);
+               clearInterval(timerIntervalRef.current);
+               intervalRef.current = null;
+               console.log(`[Pushup off] before: ${window.handlePushupData}`);
+               if (window.handlePushupData) delete window.handlePushupData;
+               console.log(`[Pushup off] after: ${window.handlePushupData}`);
+            }
          }
          return nextState;
       });
@@ -210,22 +223,28 @@ const updateData = useCallback((data) => {
       chart.data.datasets[1].data.push(stabilityRate / 10);
       chart.update();
 
+      if (window.handlePushupData) delete window.handlePushupData;
+      const device = JSON.parse(localStorage.getItem("device") || "{}");
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "pushup"});
+
       allPushupDataRef.current.push({ time: `Time ${currentTime}`, speed: pushUpSet });
       setPushUpSet(0);
    }}, [timeElapsedPushup, isFetching, pushUpSet, stabilityRate]);
 
+   const handlePushupData = useCallback((pushupData) => {
+      console.log("[Punch] Received data:", pushupData);
+      if (isFetching) {
+         updateData(pushupData);
+      }
+   }, [isFetching, updateData])
+
    useEffect(() => {
-      window.handlePushupData = (data) => {
-         console.log(`[Pushup] Received data: ${JSON.stringify(data)}`);
-         if (isFetching) {
-            updateData(data);
-         }
-      };
+      window.handlePushupData = handlePushupData;
 
       return () => {
          delete window.handlePushupData;
       };
-   }, [isFetching, updateData]);
+   }, [handlePushupData]);
 
 
    const resetExercise = () => {
