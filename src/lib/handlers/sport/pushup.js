@@ -1,10 +1,10 @@
 export const handle = (data) => {
-   const punchData = {
-      punchPower: data.detection || 0,
-      retractionTime: data.metrics.retractionTime || 0,
+   const pushupData = {
+      timestamp: data.detection,
+      count: data.count
    };
 
-   if (typeof window.handlePunchData === 'function') {
-      window.handlePunchData(punchData);
+   if (typeof window.handlePushupData === 'function') {
+      window.handlePushupData(pushupData);
    }
 };
