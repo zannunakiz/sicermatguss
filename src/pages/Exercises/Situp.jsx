@@ -59,7 +59,7 @@ const Situp = () => {
             
          // Kalau mulai (ON)
          if (nextState) {
-            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "situp", device_uuid: device.uuid } });
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "situp", device_uuid: device.device_uuid } });
             if (notify_status){
                console.log(`[Situp on] before: ${window.handleSitupData}`);
                window.handleSitupData = (situpData) => {
@@ -245,10 +245,6 @@ const Situp = () => {
          chart.data.datasets[1].data.push(stabilityRate / 10);
          chart.update();
 
-         if (window.handleSitupData) delete window.handleSitupData;
-         const device = JSON.parse(localStorage.getItem("device") || "{}");
-         sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport: "situp"});
-
          allSitupDataRef.current.push({ time: `Time ${timeElapsedSitup}`, speed: situpSet });
          setSitupSet(0);
       }
@@ -292,6 +288,10 @@ const Situp = () => {
          dataset.data = [];
       });
       chart.update();
+
+      if (window.handleSitupData) delete window.handleSitupData;
+      const device = JSON.parse(localStorage.getItem("device") || "{}");
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport: "situp"});
 
       resetTime();
    };

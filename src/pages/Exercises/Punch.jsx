@@ -88,7 +88,7 @@ const Punch = () => {
       });
    };
 
-   useEffect(() => {
+   useEffect(() => { 
       // Initialize punch power gauge
       punchPowerGaugeRef.current = new window.Gauge(punchPowerGaugeCanvasRef.current).setOptions({
          angle: 0.1,

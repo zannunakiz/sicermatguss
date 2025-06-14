@@ -57,7 +57,7 @@ const Pushup = () => {
 
          // Kalau mulai (ON)
          if (nextState) {
-            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "pushup", device_uuid: device.uuid } });
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "pushup", device_uuid: device.device_uuid } });
             if (notify_status){
                console.log(`[Pushup on] before: ${window.handlePushupData}`);
                window.handlePushupData = (pushupData) => {
@@ -223,10 +223,6 @@ const updateData = useCallback((data) => {
       chart.data.datasets[1].data.push(stabilityRate / 10);
       chart.update();
 
-      if (window.handlePushupData) delete window.handlePushupData;
-      const device = JSON.parse(localStorage.getItem("device") || "{}");
-      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "pushup"});
-
       allPushupDataRef.current.push({ time: `Time ${currentTime}`, speed: pushUpSet });
       setPushUpSet(0);
    }}, [timeElapsedPushup, isFetching, pushUpSet, stabilityRate]);
@@ -270,6 +266,10 @@ const updateData = useCallback((data) => {
       });
       chart.update();
 
+      if (window.handlePushupData) delete window.handlePushupData;
+      const device = JSON.parse(localStorage.getItem("device") || "{}");
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "pushup"});
+      
       resetTime();
    };
 

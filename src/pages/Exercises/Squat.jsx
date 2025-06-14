@@ -56,7 +56,7 @@ const Squat = () => {
 
          // Kalau mulai (ON)
          if (nextState) {
-            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "squat", device_uuid: device.uuid } });
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "squat", device_uuid: device.device_uuid } });
             if (notify_status){
                console.log(`[Squat on] before: ${window.handleSquatData}`);
                window.handleSquatData = (squatData) => {
@@ -237,10 +237,6 @@ const Squat = () => {
          chart.data.datasets[1].data.push(stabilityRate / 10);
          chart.update();
 
-         if (window.handleSquatData) delete window.handleSquatData;
-         const device = JSON.parse(localStorage.getItem("device") || "{}");
-         sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "squat"});
-
          allSquatDataRef.current.push({ time: `Time ${timeElapsedSquat}`, speed: squatSet });
          setSquatSet(0);
       }
@@ -285,6 +281,10 @@ const Squat = () => {
       });
       chart.update();
 
+      if (window.handleSquatData) delete window.handleSquatData;
+      const device = JSON.parse(localStorage.getItem("device") || "{}");
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "squat"});
+      
       resetTime();
    };
 
