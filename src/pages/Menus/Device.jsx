@@ -1,10 +1,10 @@
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
+import { RefreshCw, Watch, Wifi } from 'lucide-react'
+import { getDevices } from '../../actions/deviceActions'
 import BluetoothDevice from '../../components/BluetoothDevice'
 import DevicePopup from '../../components/DevicePopup'
 import { usePairedDevice } from '../../context/PairedDeviceContext'
 import { useToast } from '../../context/ToastContext'
-
-
 
 const Device = () => {
    const [devices, setDevices] = useState([])
@@ -17,59 +17,59 @@ const Device = () => {
    const toast = useToast()
    const { pairedDevice } = usePairedDevice()
 
-   // useEffect(() => {
-   //    const fetchDevices = async () => {
-   //       if (isFirstRender.current) {
-   //          setLoading(true);
-   //       }
-   //       try {
-   //          const res = await getDevices();
+   useEffect(() => {
+      const fetchDevices = async () => {
+         if (isFirstRender.current) {
+            setLoading(true);
+         }
+         try {
+            const res = await getDevices();
 
-   //          if (res.success) {
-   //             if (isFirstRender.current) {
-   //                toast.success("Successfully Fetch Devices");
-   //             }
-   //             setDevices(res.devices || []);
-   //          } else {
-   //             toast.error("Error While Fetching Devices");
-   //             setDevices([]);
-   //          }
-   //       } catch (error) {
-   //          toast.error("Network Error While Fetching Devices");
-   //          setDevices([]);
-   //       } finally {
-   //          if (isFirstRender.current) {
-   //             setLoading(false);
-   //             isFirstRender.current = false;
-   //          }
-   //       }
-   //    };
-   //    fetchDevices();
-   // }, [refetch]);
+            if (res.success) {
+               if (isFirstRender.current) {
+                  toast.success("Successfully Fetch Devices");
+               }
+               setDevices(res.devices || []);
+            } else {
+               toast.error("Error While Fetching Devices");
+               setDevices([]);
+            }
+         } catch (error) {
+            toast.error("Network Error While Fetching Devices");
+            setDevices([]);
+         } finally {
+            if (isFirstRender.current) {
+               setLoading(false);
+               isFirstRender.current = false;
+            }
+         }
+      };
+      fetchDevices();
+   }, [refetch]);
 
-   // const fetchDevices = async () => {
-   //    setRefreshing(true)
-   //    try {
-   //       const res = await getDevices()
-   //       if (res.success) {
-   //          toast.success("Successfully Fetch Devices")
-   //          setDevices(res.devices || [])
-   //       } else {
-   //          toast.error("Error While Fetching Devices")
-   //          setDevices([])
-   //       }
-   //    } catch (error) {
-   //       toast.error("Network Error While Fetching Devices")
-   //       setDevices([])
-   //    } finally {
-   //       setRefreshing(false)
-   //    }
-   // }
+   const fetchDevices = async () => {
+      setRefreshing(true)
+      try {
+         const res = await getDevices()
+         if (res.success) {
+            toast.success("Successfully Fetch Devices")
+            setDevices(res.devices || [])
+         } else {
+            toast.error("Error While Fetching Devices")
+            setDevices([])
+         }
+      } catch (error) {
+         toast.error("Network Error While Fetching Devices")
+         setDevices([])
+      } finally {
+         setRefreshing(false)
+      }
+   }
 
-   // const handleDeviceClick = (device) => {
-   //    setSelectedDevice(device)
-   //    setShowPopup(true)
-   // }
+   const handleDeviceClick = (device) => {
+      setSelectedDevice(device)
+      setShowPopup(true)
+   }
 
    const closePopup = () => {
       setShowPopup(false)
@@ -78,7 +78,7 @@ const Device = () => {
    return (
       <div className="p-6">
          <div className="max-w-4xl mx-auto ">
-            {/* <header className="mb-8">
+            <header className="mb-8">
                <h1 className="text-3xl font-bold text-gray-100 flex items-center gap-3">🔧 Device Manager</h1>
                <p className="text-gray-400 mt-2">Select a device to configure its network settings</p>
             </header>
@@ -196,7 +196,7 @@ const Device = () => {
 
 
 
-            </div> */}
+            </div>
 
             <BluetoothDevice />
          </div>

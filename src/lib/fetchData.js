@@ -1,6 +1,5 @@
 //FUNGSI PEROLEH DATA DARI SENSOR, RUN SETIAP 500ms
 
-
 export async function fetchData(label) {
    console.log("Starting to fetch data for label:", label);
 

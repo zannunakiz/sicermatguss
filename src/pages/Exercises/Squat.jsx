@@ -3,8 +3,9 @@ import HeartRate from '../../components/HeartRate';
 import ResetDialog from '../../components/ResetDialog';
 import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
+import { sendWSMessage } from '../../lib/wsClient';
 
-const Squat = ({ fetchData }) => {
+const Squat = () => {
    // State variables
    const [squatCount, setSquatCount] = useState(0);
    const [squatSet, setSquatSet] = useState(0);
@@ -40,6 +41,7 @@ const Squat = ({ fetchData }) => {
    const { pairedDevice } = usePairedDevice()
    const intervalRef = useRef(null);
 
+   // TODO: perlu logika buat destroy window.handleSquatData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
@@ -50,17 +52,32 @@ const Squat = ({ fetchData }) => {
          const nextState = !prev;
          startPauseTime();
          toast.normal(`Squat Exercise ${nextState ? "Started" : "Paused"}`);
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
 
          // Kalau mulai (ON)
          if (nextState) {
-            fetchData("squat");
-            intervalRef.current = setInterval(() => {
-               fetchData("squat");
-            }, 500);
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "squat", device_uuid: device.device_uuid } });
+            if (notify_status){
+               console.log(`[Squat on] before: ${window.handleSquatData}`);
+               window.handleSquatData = (squatData) => {
+                  console.log(`[Squat] Received data: ${JSON.stringify(squatData)}`);
+                  if (isFetching) {
+                     updateData(squatData);
+                  }
+               }
+               console.log(`[Squat on] after: ${window.handleSquatData}`);
+            }
          } else {
             // Kalau berhenti (OFF)
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "squat", device_uuid: device.device_uuid } });
+            if (!notify_status) toast.error("Failed to send pause_session message");
+            else {
+               toast.normal("Squat Exercise Paused");
+               clearInterval(timerIntervalRef.current);
+               intervalRef.current = null;
+               if (window.handleSquatData) delete window.handleSquatData
+               console.log(`[Squat off] window.handleSquatData: ${window.handleSquatData}`);
+            }
          }
 
          return nextState;
@@ -165,24 +182,32 @@ const Squat = ({ fetchData }) => {
    };
 
    // Update data function
-   const updateData = useCallback(() => {
+   const updateData = useCallback((data) => {
       if (!isFetching) return;
 
-      const squatOneSec = Math.floor(Math.random() * 3) + 1;
-      setSquatCount(prev => prev + squatOneSec);
-      setSquatSet(prev => prev + squatOneSec);
+      const detectedSquat = data.squat || 1; // TODO: maske sure this logic is correct
+
+      // const squatOneSec = Math.floor(Math.random() * 3) + 1;
+      setSquatCount(prev => prev + detectedSquat);
+      setSquatSet(prev => prev + detectedSquat);
+
+      const currentTime = timeElapsedSquat
 
       // Track squat intervals
-      if (squatOneSec > 0) {
-         const currentTime = timeElapsedSquat;
-         if (lastSquatTimeRef.current > 0) {
-            const interval = currentTime - lastSquatTimeRef.current;
-            squatIntervalsRef.current.push(interval);
-         }
-         lastSquatTimeRef.current = currentTime;
-      }
+      // if (detectedSquat > 0) {
+      //    const currentTime = timeElapsedSquat;
+      //    if (lastSquatTimeRef.current > 0) {
+      //       const interval = currentTime - lastSquatTimeRef.current;
+      //       squatIntervalsRef.current.push(interval);
+      //    }
+      //    lastSquatTimeRef.current = currentTime;
+      // }
 
-      setTimeElapsedSquat(prev => prev + 1);
+      if (lastSquatTimeRef.current > 0) {
+         const interval = currentTime - lastSquatTimeRef.current;
+         squatIntervalsRef.current.push(interval);
+      }
+      lastSquatTimeRef.current = currentTime;
 
       // Update chart every 3 seconds
       if (timeElapsedSquat % 3 === 0) {
@@ -217,7 +242,20 @@ const Squat = ({ fetchData }) => {
       }
    }, [stabilityRate, timeElapsedSquat, isFetching, squatSet]);
 
+   const handleSquatData = useCallback((squatData) => {
+      console.log("[Squat] Received data:", squatData);
 
+      if (isFetching){
+         updateData(squatData);
+      }
+   }, [isFetching, updateData]);
+   
+   useEffect(() => {
+      window.handleSquatData = handleSquatData;
+      return () => {
+         if (window.handleSquatData) delete window.handleSquatData;
+      }
+   }, [handleSquatData]);
 
    const resetExercise = () => {
       setSquatCount(0);
@@ -243,6 +281,10 @@ const Squat = ({ fetchData }) => {
       });
       chart.update();
 
+      if (window.handleSquatData) delete window.handleSquatData;
+      const device = JSON.parse(localStorage.getItem("device") || "{}");
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "squat"});
+      
       resetTime();
    };
 
@@ -263,10 +305,24 @@ const Squat = ({ fetchData }) => {
    };
 
    // Simulate data updates
+   // useEffect(() => {
+   //    const interval = setInterval(updateData, 1000);
+   //    return () => clearInterval(interval);
+   // }, [isFetching, timeElapsedSquat, stabilityRate, updateData]);
    useEffect(() => {
-      const interval = setInterval(updateData, 1000);
-      return () => clearInterval(interval);
-   }, [isFetching, timeElapsedSquat, stabilityRate, updateData]);
+      let interval = null;
+
+      if (isFetching){
+         interval = setInterval(() => {
+            setTimeElapsedSquat(prev => prev + 1);
+         }, 1000);
+      } else {
+         setTimeElapsedSquat(0);
+      }
+      return () => {
+         if (interval) clearInterval(interval)
+      }
+   }, [isFetching]);
 
    return (
       <section id="squat-content" className='overflow-x-hidden'>
