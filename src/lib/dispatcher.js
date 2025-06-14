@@ -2,11 +2,13 @@
 import * as receiveSportReadings from './handlers/receiveSportReadings.js';
 import * as updateDeviceStatus from './handlers/updateDeviceStatus.js';
 import * as pairRequest from './handlers/pairRequest.js';
+import * as heartSensing from './handlers/heartSensing.js';
 
 const handlers = {
    sport_sensing: receiveSportReadings,
    device_status_update: updateDeviceStatus,
-   pair_request: pairRequest
+   pair_request: pairRequest,
+   heart_sensing: heartSensing
 };
 
 export const dispatch = async (json) => {
