@@ -3,17 +3,21 @@ import HeartRate from '../../components/HeartRate';
 import ResetDialog from '../../components/ResetDialog';
 import { usePairedDevice } from '../../context/PairedDeviceContext';
 import { useToast } from '../../context/ToastContext';
+import { sendWSMessage } from '../../lib/wsClient';
+import SubmitDialog, { SubmitButton } from '../../components/SubmitDialog';
 
-const Punch = ({ fetchData }) => {
+const Punch = () => {
    // State variables
    const [punchCount, setPunchCount] = useState(0);
    const [maxPower, setMaxPower] = useState(0);
+   const [punchType, setPunchType] = useState('jab')
    const [currentPunchPower, setCurrentPunchPower] = useState(0);
    const [currentRetractionTime, setCurrentRetractionTime] = useState(0);
    const [avgPower, setAvgPower] = useState(0);
    const [timeElapsedPunch, setTimeElapsedPunch] = useState(0);
    const [isFetching, setIsFetching] = useState(false);
    const [resetDialog, setResetDialog] = useState(false)
+   const [submitDialog, setSubmitDialog] = useState(false)
 
    // Refs for chart instances and data
    const punchPowerGaugeRef = useRef(null);
@@ -23,6 +27,7 @@ const Punch = ({ fetchData }) => {
    const retractionTimeGaugeCanvasRef = useRef(null);
    const powerChartCanvasRef = useRef(null);
    const strPunchRef = useRef(null);
+   const [submitPayload, setSubmitPayload] = useState({ name: 'punch' })
    const rstPunchRef = useRef(null);
 
    // Data storage
@@ -35,6 +40,7 @@ const Punch = ({ fetchData }) => {
 
    const intervalRef = useRef(null);
 
+   // TODO: perlu logika buat destroy window.handlePunchData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
@@ -46,16 +52,40 @@ const Punch = ({ fetchData }) => {
 
          toast.normal(`Punch Exercise ${nextState ? "Started" : "Paused"}`);
 
+         const device = JSON.parse(localStorage.getItem("device") || "{}");
+         console.log(`[Punch] device: ${JSON.stringify(device)}`);
          // Kalau mulai (ON)
          if (nextState) {
-            fetchData("punch");
-            intervalRef.current = setInterval(() => {
-               fetchData("punch");
-            }, 500);
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "punch", device_uuid: device.device_uuid } });
+            if (notify_status) {
+               console.log(`[Punch on] before: ${window.handlePunchData}`);
+
+               window.handlePunchData = (punchData) => {
+                  console.log(`[Punch] Received data: ${JSON.stringify(punchData)}`);
+                  if (isFetching) {
+                     updateData(punchData);
+                  }
+               }
+               console.log(`[Punch on] after: ${window.handlePunchData}`);
+            }
+            // fetchData("punch");
+            // intervalRef.current = setInterval(() => {
+            //    fetchData("punch");
+            // }, 500);
          } else {
             // Kalau berhenti (OFF)
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
+            // sendWSMessage({ type: "save_session", data: { sport_type: "punch" } });
+            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "punch", device_uuid: device.device_uuid } });
+            if (!notify_status) {
+               toast.error("Failed to pause session");
+            } else {
+               toast.normal("Punch Exercise Paused");
+               clearInterval(intervalRef.current);
+               intervalRef.current = null;
+               console.log("[Punch] Stopped, window.handlePunchData: ", window.handlePunchData);
+               if (window.handlePunchData) delete window.handlePunchData;
+               console.log(`[Punch] window.handlePunchData: ${window.handlePunchData}`);
+            }
          }
 
          return nextState;
@@ -169,6 +199,36 @@ const Punch = ({ fetchData }) => {
       };
    }, []);
 
+   // TODO: May need to be added if necessary
+   // const resetTime = () => {
+   //    clearInterval(timerIntervalRef.current);
+   //    setTime(0);
+   //    setIsRunning(false);
+   // };
+
+
+
+   // Dynamic Punch Image
+   const renderPunchTypeIcon = (type) => {
+
+      if (type === "jab" || type === "hook") {
+         return (
+            <div className=' flex w-28 h-28 items-center justify-center'>
+               <img src={`/images/${type}.png`}>
+               </img>
+            </div>
+         )
+      } else {
+         return (
+            <div className=' flex w-40 h-32 items-center justify-center'>
+               <img src={`/images/${type}.png`}>
+               </img>
+            </div>
+         )
+      }
+
+
+   }
    // Update data function
    const updateData = useCallback((data) => {
       const { punchPower, retractionTime } = data;
@@ -212,6 +272,27 @@ const Punch = ({ fetchData }) => {
       chart.update();
    }, [timeElapsedPunch])
 
+   const handlePunchData = useCallback((punchData) => {
+      console.log(`[Punch] Received data: ${JSON.stringify(punchData)}`);
+
+      if (isFetching) {
+         updateData(punchData);
+      }
+   }, [isFetching, updateData]);
+
+   // ⚡ Langsung assign saat mount
+   useEffect(() => {
+      window.handlePunchData = handlePunchData;
+
+      // Bersihkan saat unmount
+      return () => {
+         if (window.handlePunchData) {
+            delete window.handlePunchData;
+         }
+      };
+   }, [handlePunchData]);
+
+
    const resetExercise = () => {
       setPunchCount(0);
       setMaxPower(0);
@@ -235,6 +316,14 @@ const Punch = ({ fetchData }) => {
       chart.data.datasets[0].data = [];
       chart.data.datasets[1].data = [];
       chart.update();
+      // resetTime();
+
+      // Hapus event listener data
+      if (window.handlePunchData) {
+         delete window.handlePunchData;
+      }
+      const device = JSON.parse(localStorage.getItem("device") || "{}");
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "punch" });
    };
 
    // Export data
@@ -254,18 +343,31 @@ const Punch = ({ fetchData }) => {
    };
 
    // Simulate data updates when fetching
-   useEffect(() => {
-      if (!isFetching) return;
+   // useEffect(() => {
+   //    if (!isFetching) return;
 
-      const interval = setInterval(() => {
-         updateData({
-            punchPower: Math.floor(Math.random() * 100),
-            retractionTime: Math.floor(Math.random() * 100)
-         });
-      }, 1000);
+   //    const interval = setInterval(() => {
+   //       updateData({
+   //          punchPower: Math.floor(Math.random() * 100),
+   //          retractionTime: Math.floor(Math.random() * 100)
+   //       });
+   //    }, 1000);
 
-      return () => clearInterval(interval);
-   }, [isFetching, timeElapsedPunch, updateData]);
+   //    return () => clearInterval(interval);
+   // }, [isFetching, timeElapsedPunch, updateData]);
+
+   // useEffect(() => {
+   //    window.handlePunchData = (data) => {
+   //       console.log(`[Punch] Received data: ${JSON.stringify(data)}`);
+   //       if (isFetching) {
+   //          updateData(data);
+   //       }
+   //    };
+
+   //    return () => {
+   //       delete window.handlePunchData;
+   //    };
+   // }, [isFetching, updateData]);
 
    return (
       <section id="punch-content" className='overflow-x-hidden'>
@@ -293,11 +395,18 @@ const Punch = ({ fetchData }) => {
                   >
                      Reset
                   </button>
+
+                  <button
+                     className="rst-btn hover:bg-yellow-600"
+                     onClick={() => setSubmitDialog(true)}
+                  >
+                     Submit
+                  </button>
                </div>
             </section>
 
             <div className="row cards-container">
-               <div className="col-md-3">
+               <div className="col-md-4">
                   <div className="card carddata">
                      <div className="card-body">
                         <h5 className="card-title text-white">Punch Count</h5>
@@ -307,7 +416,28 @@ const Punch = ({ fetchData }) => {
                   </div>
                </div>
 
-               <div className="col-md-3">
+               <div className="col-md-4">
+                  <div className="card carddata">
+                     <div className="card-body  gap-3">
+                        <h5 className="card-title text-pink-300 ">Punching Type</h5>
+                        {renderPunchTypeIcon(punchType)}
+                     </div>
+                  </div>
+               </div>
+
+               <div className="col-span-full md:col-span-auto col-md-4 ">
+                  <div className="card carddata">
+                     <div className="card-body justify-center gap-14">
+                        <h5 className="card-title text-green-300">Max Power</h5>
+                        <p className="card-text -mt-12   ">{maxPower}</p>
+                        <h5 className="card-title text-yellow-200">Avg Power</h5>
+                        <p className="card-text -mt-12">{avgPower.toFixed(2)}</p>
+                     </div>
+                  </div>
+               </div>
+
+
+               <div className="col-md-6 md:mt-10">
                   <div className="card carddata">
                      <div className="card-body">
                         <h5 className="card-title text-blue-300">Punch Power</h5>
@@ -323,10 +453,10 @@ const Punch = ({ fetchData }) => {
                   </div>
                </div>
 
-               <div className="col-md-3">
+               <div className="col-md-6 md:mt-10">
                   <div className="card carddata">
                      <div className="card-body">
-                        <h5 className="card-title text-red-300">Retraction Power</h5>
+                        <h5 className="card-title text-red-300 ">Retraction <span className='hidden md:inline'>Power</span></h5>
                         <h5 className="card-text">{currentRetractionTime}</h5>
                         <canvas
                            ref={retractionTimeGaugeCanvasRef}
@@ -339,18 +469,7 @@ const Punch = ({ fetchData }) => {
                   </div>
                </div>
 
-               <div className="col-md-3">
-                  <div className="card carddata">
-                     <div className="card-body justify-center gap-14">
-                        <h5 className="card-title text-green-300">Max Power</h5>
-                        <p className="card-text -mt-12   ">{maxPower}</p>
-                        <h5 className="card-title text-yellow-200">Avg Power</h5>
-                        <p className="card-text -mt-12">{avgPower.toFixed(2)}</p>
-                     </div>
-                  </div>
-               </div>
             </div>
-
             <div className="row mt-5">
                <div className="col-md-12 graph-container">
                   <div className="card">
@@ -377,6 +496,15 @@ const Punch = ({ fetchData }) => {
                isOpen={resetDialog}
                onClose={() => setResetDialog(false)}
                onSubmit={resetExercise}
+            />
+         }
+
+         {
+            submitDialog &&
+            <SubmitDialog
+               isOpen={submitDialog}
+               onClose={() => setSubmitDialog(false)}
+               payload={submitPayload}
             />
          }
 

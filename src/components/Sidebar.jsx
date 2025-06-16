@@ -20,7 +20,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       { name: 'Pushups', path: '/exercises/pushup', icon: () => <img alt='icon' className='-ml-1' src="/icon/pushupWhite.svg"></img> },
       { name: 'Situps', path: '/exercises/situp', icon: () => <img alt='icon' className='-ml-1' src="/icon/situpWhite.svg"></img> },
       { name: 'Squats', path: '/exercises/squat', icon: () => <img alt='icon' className='-ml-1' src="/icon/squatWhite.svg"></img> },
-      { name: 'Jumps', path: '/exercises/jump', icon: () => <img alt='icon' className='-ml-1' src="/icon/jumpWhite.svg"></img> },
       { name: 'Punches', path: '/exercises/punch', icon: () => <img alt='icon' className='-ml-1' src="/icon/punchWhite.svg"></img> },
    ];
 

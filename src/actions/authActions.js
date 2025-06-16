@@ -1,4 +1,5 @@
 import { saveCredentials, saveToken } from "./creds";
+import { connectToWebSocket } from "../lib/wsClient";
 
 export async function authSignIn(userData) {
    const res = await fetch(`${process.env.REACT_APP_API}/auth/login`, {
@@ -12,6 +13,7 @@ export async function authSignIn(userData) {
    const { content } = await res.json()
 
    if (res.ok) {
+      connectToWebSocket()
       await saveCredentials(content.user_data);
       await saveToken(content.token);
       return true

@@ -6,92 +6,93 @@ import { useToast } from '../../context/ToastContext';
 import { sendWSMessage } from '../../lib/wsClient';
 import SubmitDialog from '../../components/SubmitDialog';
 
-const Squat = () => {
+const Pushup = () => {
    // State variables
-   const [squatCount, setSquatCount] = useState(0);
-   const [squatSet, setSquatSet] = useState(0);
+   const [pushUpCount, setPushUpCount] = useState(0);
+   const [pushUpSet, setPushUpSet] = useState(0);
    const [stabilityRate, setStabilityRate] = useState(0);
-   const [timeElapsedSquat, setTimeElapsedSquat] = useState(0);
+   const [timeElapsedPushup, setTimeElapsedPushup] = useState(0);
    const [isRunning, setIsRunning] = useState(false);
    const [time, setTime] = useState(0);
    const [isFetching, setIsFetching] = useState(false);
    const [resetDialog, setResetDialog] = useState(false)
    const [submitDialog, setSubmitDialog] = useState(false)
-   const [submitPayload, setSubmitPayload] = useState({ name: 'situp' })
+   const [submitPayload, setSubmitPayload] = useState({ name: 'pushup' })
 
    // Refs for chart instances and DOM elements
-   const squatGaugeRef = useRef(null);
-   const squatChartRef = useRef(null);
-   const squatChartCanvasRef = useRef(null);
-   const squatGaugeCanvasRef = useRef(null);
+   const pushupGaugeRef = useRef(null);
+   const pushupChartRef = useRef(null);
+   const pushupChartCanvasRef = useRef(null);
+   const pushupGaugeCanvasRef = useRef(null);
    const timerRef = useRef(null);
-   const strSquatRef = useRef(null);
-   const rstSquatRef = useRef(null);
+   const strPushupRef = useRef(null);
+   const rstPushupRef = useRef(null);
 
    // Data storage
-   const lastSquatTimeRef = useRef(0);
-   const squatIntervalsRef = useRef([]);
-   const allSquatDataRef = useRef([]);
+   const lastPushupTimeRef = useRef(0);
+   const pushupIntervalsRef = useRef([]);
+   const allPushupDataRef = useRef([]);
    const timerIntervalRef = useRef(null);
 
+   // Format time for display
    const formatTime = (seconds) => {
       const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
       const secs = (seconds % 60).toString().padStart(2, '0');
       return `${minutes}:${secs}`;
    };
 
+
    const toast = useToast()
    const { pairedDevice } = usePairedDevice()
    const intervalRef = useRef(null);
 
-   // TODO: perlu logika buat destroy window.handleSquatData saat leave page
+   // TODO: perlu logika buat destroy window.handlePushupData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
          return;
       }
-
       setIsFetching(prev => {
          const nextState = !prev;
-         startPauseTime();
-         toast.normal(`Squat Exercise ${nextState ? "Started" : "Paused"}`);
+         startPauseTime()
+         toast.normal(`Pushup Exercise ${nextState ? "Started" : "Paused"}`);
          const device = JSON.parse(localStorage.getItem("device") || "{}");
 
          // Kalau mulai (ON)
          if (nextState) {
-            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "squat", device_uuid: device.device_uuid } });
+            const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "pushup", device_uuid: device.device_uuid } });
             if (notify_status) {
-               console.log(`[Squat on] before: ${window.handleSquatData}`);
-               window.handleSquatData = (squatData) => {
-                  console.log(`[Squat] Received data: ${JSON.stringify(squatData)}`);
+               console.log(`[Pushup on] before: ${window.handlePushupData}`);
+               window.handlePushupData = (pushupData) => {
+                  console.log(`[Pushup] Received data: ${JSON.stringify(pushupData)}`);
                   if (isFetching) {
-                     updateData(squatData);
+                     updateData(pushupData);
                   }
                }
-               console.log(`[Squat on] after: ${window.handleSquatData}`);
+               console.log(`[Pushup on] after: ${window.handlePushupData}`);
             }
          } else {
-            // Kalau berhenti (OFF)
-            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "squat", device_uuid: device.device_uuid } });
+            const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "pushup", device_uuid: device.device_uuid } });
             if (!notify_status) toast.error("Failed to send pause_session message");
             else {
-               toast.normal("Squat Exercise Paused");
+               toast.normal(`Pushup Exercise Paused`);
                clearInterval(timerIntervalRef.current);
                intervalRef.current = null;
-               if (window.handleSquatData) delete window.handleSquatData
-               console.log(`[Squat off] window.handleSquatData: ${window.handleSquatData}`);
+               console.log(`[Pushup off] before: ${window.handlePushupData}`);
+               if (window.handlePushupData) delete window.handlePushupData;
+               console.log(`[Pushup off] after: ${window.handlePushupData}`);
             }
          }
-
          return nextState;
       });
    };
 
 
+
    // Initialize charts on component mount
    useEffect(() => {
       // Initialize gauge
-      squatGaugeRef.current = new window.Gauge(squatGaugeCanvasRef.current).setOptions({
+      pushupGaugeRef.current = new window.Gauge(pushupGaugeCanvasRef.current).setOptions({
          angle: -0.5,
          lineWidth: 0.1,
          radiusScale: 1.1,
@@ -107,19 +108,19 @@ const Squat = () => {
          strokeColor: '#E0E0E0',
          generateGradient: true
       });
-      squatGaugeRef.current.maxValue = 100;
-      squatGaugeRef.current.setMinValue(0);
-      squatGaugeRef.current.set(0);
+      pushupGaugeRef.current.maxValue = 100;
+      pushupGaugeRef.current.setMinValue(0);
+      pushupGaugeRef.current.set(0);
 
       // Initialize chart
-      const ctx = squatChartCanvasRef.current.getContext('2d');
-      squatChartRef.current = new window.Chart(ctx, {
+      const ctx = pushupChartCanvasRef.current.getContext('2d');
+      pushupChartRef.current = new window.Chart(ctx, {
          type: 'line',
          data: {
             labels: [],
             datasets: [
                {
-                  label: 'Squat Speed',
+                  label: 'Push Up Speed',
                   data: [],
                   borderColor: '#ffff00',
                   borderWidth: 1,
@@ -160,8 +161,8 @@ const Squat = () => {
          if (timerIntervalRef.current) {
             clearInterval(timerIntervalRef.current);
          }
-         if (squatChartRef.current) {
-            squatChartRef.current.destroy();
+         if (pushupChartRef.current) {
+            pushupChartRef.current.destroy();
          }
       };
    }, []);
@@ -188,113 +189,98 @@ const Squat = () => {
    const updateData = useCallback((data) => {
       if (!isFetching) return;
 
-      const detectedSquat = data.squat || 1; // TODO: maske sure this logic is correct
+      const detectedPushups = data.pushupCount || 1; // TODO: Make sure this is correct
 
-      // const squatOneSec = Math.floor(Math.random() * 3) + 1;
-      setSquatCount(prev => prev + detectedSquat);
-      setSquatSet(prev => prev + detectedSquat);
+      setPushUpCount(prev => prev + detectedPushups);
+      setPushUpSet(prev => prev + detectedPushups);
 
-      const currentTime = timeElapsedSquat
+      const currentTime = timeElapsedPushup;
 
-      // Track squat intervals
-      // if (detectedSquat > 0) {
-      //    const currentTime = timeElapsedSquat;
-      //    if (lastSquatTimeRef.current > 0) {
-      //       const interval = currentTime - lastSquatTimeRef.current;
-      //       squatIntervalsRef.current.push(interval);
-      //    }
-      //    lastSquatTimeRef.current = currentTime;
-      // }
-
-      if (lastSquatTimeRef.current > 0) {
-         const interval = currentTime - lastSquatTimeRef.current;
-         squatIntervalsRef.current.push(interval);
+      if (lastPushupTimeRef.current > 0) {
+         const interval = currentTime - lastPushupTimeRef.current;
+         pushupIntervalsRef.current.push(interval);
       }
-      lastSquatTimeRef.current = currentTime;
+      lastPushupTimeRef.current = currentTime;
 
       // Update chart every 3 seconds
-      if (timeElapsedSquat % 3 === 0) {
-         squatGaugeRef.current.set(squatSet);
+      if (currentTime % 3 === 0) {
+         pushupGaugeRef.current.set(pushUpSet);
 
-         // Calculate stability rate
-         if (squatIntervalsRef.current.length > 1) {
-            const avgInterval = squatIntervalsRef.current.reduce((a, b) => a + b, 0) / squatIntervalsRef.current.length;
-            const stableIntervals = squatIntervalsRef.current.filter(interval =>
+         if (pushupIntervalsRef.current.length > 1) {
+            const avgInterval = pushupIntervalsRef.current.reduce((a, b) => a + b, 0) / pushupIntervalsRef.current.length;
+            const stableIntervals = pushupIntervalsRef.current.filter(interval =>
                Math.abs(interval - avgInterval) <= 0.5
             );
-            const newStabilityRate = Math.round((stableIntervals.length / squatIntervalsRef.current.length) * 100);
+            const newStabilityRate = Math.round((stableIntervals.length / pushupIntervalsRef.current.length) * 100);
             setStabilityRate(newStabilityRate);
          }
 
-         // Update chart data
-         const chart = squatChartRef.current;
-         if (timeElapsedSquat > 30) {
+         const chart = pushupChartRef.current;
+         if (currentTime > 30) {
             chart.data.labels.shift();
-            chart.data.datasets.forEach(dataset => {
-               dataset.data.shift();
-            });
+            chart.data.datasets.forEach(dataset => dataset.data.shift());
          }
 
-         chart.data.labels.push(`${timeElapsedSquat} Sec`);
-         chart.data.datasets[0].data.push(squatSet);
+         chart.data.labels.push(`${currentTime} Sec`);
+         chart.data.datasets[0].data.push(pushUpSet);
          chart.data.datasets[1].data.push(stabilityRate / 10);
          chart.update();
 
-         allSquatDataRef.current.push({ time: `Time ${timeElapsedSquat}`, speed: squatSet });
-         setSquatSet(0);
+         allPushupDataRef.current.push({ time: `Time ${currentTime}`, speed: pushUpSet });
+         setPushUpSet(0);
       }
-   }, [stabilityRate, timeElapsedSquat, isFetching, squatSet]);
+   }, [timeElapsedPushup, isFetching, pushUpSet, stabilityRate]);
 
-   const handleSquatData = useCallback((squatData) => {
-      console.log("[Squat] Received data:", squatData);
-
+   const handlePushupData = useCallback((pushupData) => {
+      console.log("[Punch] Received data:", pushupData);
       if (isFetching) {
-         updateData(squatData);
+         updateData(pushupData);
       }
-   }, [isFetching, updateData]);
+   }, [isFetching, updateData])
 
    useEffect(() => {
-      window.handleSquatData = handleSquatData;
+      window.handlePushupData = handlePushupData;
+
       return () => {
-         if (window.handleSquatData) delete window.handleSquatData;
-      }
-   }, [handleSquatData]);
+         delete window.handlePushupData;
+      };
+   }, [handlePushupData]);
+
 
    const resetExercise = () => {
-      setSquatCount(0);
-      setSquatSet(0);
+      setPushUpCount(0);
+      setPushUpSet(0);
       setStabilityRate(0);
-      setTimeElapsedSquat(0);
+      setTimeElapsedPushup(0);
       setIsFetching(false);
       clearInterval(intervalRef.current);
 
-
-      lastSquatTimeRef.current = 0;
-      squatIntervalsRef.current = [];
-      allSquatDataRef.current = [];
+      lastPushupTimeRef.current = 0;
+      pushupIntervalsRef.current = [];
+      allPushupDataRef.current = [];
 
       // Reset gauge
-      squatGaugeRef.current.set(0);
+      pushupGaugeRef.current.set(0);
 
       // Reset chart
-      const chart = squatChartRef.current;
+      const chart = pushupChartRef.current;
       chart.data.labels = [];
       chart.data.datasets.forEach(dataset => {
          dataset.data = [];
       });
       chart.update();
 
-      if (window.handleSquatData) delete window.handleSquatData;
+      if (window.handlePushupData) delete window.handlePushupData;
       const device = JSON.parse(localStorage.getItem("device") || "{}");
-      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "squat" });
+      sendWSMessage({ type: "save_session", device_uuid: device.device_uuid, sport_type: "pushup" });
 
       resetTime();
    };
 
    // Export data
    const exportData = () => {
-      let csvContent = "Time, Total(squats/ 3sec)\n";
-      allSquatDataRef.current.forEach(entry => {
+      let csvContent = "Time, Total(push ups/ 3sec)\n";
+      allPushupDataRef.current.forEach(entry => {
          csvContent += `${entry.time},${entry.speed}\n`;
       });
 
@@ -302,50 +288,52 @@ const Squat = () => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "all_squat_data.csv";
+      link.download = "all_pushup_data.csv";
       link.click();
       URL.revokeObjectURL(url);
    };
 
-   // Simulate data updates
    // useEffect(() => {
    //    const interval = setInterval(updateData, 1000);
    //    return () => clearInterval(interval);
-   // }, [isFetching, timeElapsedSquat, stabilityRate, updateData]);
+   // }, [isFetching, timeElapsedPushup, stabilityRate, updateData]);
    useEffect(() => {
       let interval = null;
 
       if (isFetching) {
          interval = setInterval(() => {
-            setTimeElapsedSquat(prev => prev + 1);
+            setTimeElapsedPushup(prev => prev + 1);
          }, 1000);
       } else {
-         setTimeElapsedSquat(0);
+         setTimeElapsedPushup(0); // Reset saat pause/stop
       }
+
       return () => {
-         if (interval) clearInterval(interval)
-      }
+         if (interval) clearInterval(interval);
+      };
    }, [isFetching]);
 
    return (
-      <section id="squat-content" className='overflow-x-hidden'>
-         <div className="container dashboard-container" id="squat-training">
-            <h1 className="dashboard-title boxing-title">Squat Exercise Dashboard</h1>
-            <h4 className="dashboard-subtitle text-center text-white mb-10">(Place device on the Thigh)</h4>
+      <section id="pushup-content" className='overflow-x-hidden'>
+         <div className="container dashboard-container" id="pushup-training">
+            <h1 className="dashboard-title boxing-title">Push Up Exercise Dashboard</h1>
+            <h4 className="dashboard-subtitle text-center text-white mb-10">
+               (Place device on the Upper Arm)
+            </h4>
 
             <section id="control-section">
                <div className="text-white">
                   <button
-                     ref={strSquatRef}
-                     id="str-squat"
+                     ref={strPushupRef}
+                     id="str-pushup"
                      className="str-btn"
                      onClick={startExercise}
                   >
                      {isFetching ? "Pause" : "Start"}
                   </button>
                   <button
-                     ref={rstSquatRef}
-                     id="rst-squat"
+                     ref={rstPushupRef}
+                     id="rst-pushup"
                      className="rst-btn"
                      onClick={() => setResetDialog(true)}
                   >
@@ -364,9 +352,9 @@ const Squat = () => {
                <div className="col-md-3">
                   <div className="card carddata">
                      <div className="card-body">
-                        <h5 className="card-title text-white">Squat Count</h5>
-                        <p className="card-text">{squatCount}</p>
-                        <img src="../icon/squat.svg" alt="squat icon" className="w-[130px] mt-[40px]" />
+                        <h5 className="card-title text-white">Push Up Count</h5>
+                        <p className="card-text">{pushUpCount}</p>
+                        <img src="/icon/pushup.svg" alt="pushup icon" className="w-[130px] mt-[40px]" />
                      </div>
                   </div>
                </div>
@@ -374,11 +362,11 @@ const Squat = () => {
                <div className="col-md-3">
                   <div className="card carddata">
                      <div className="card-body">
-                        <h5 className="card-title text-yellow-300">Squat Speed</h5>
-                        <div className="squatSpeedItem">
-                           <h5 className="card-text text-center mt-[50px]">{squatSet}</h5>
-                           <p className="text-white text-center text-[0.8rem] mt-[40px]">squats / 3 sec</p>
-                           <canvas ref={squatGaugeCanvasRef} id="squatGauge" className="mt-[-90px]"></canvas>
+                        <h5 className="card-title text-yellow-300">Push Up Speed</h5>
+                        <div className="pushupSpeedItem">
+                           <h5 className="card-text text-center mt-[50px]">{pushUpSet}</h5>
+                           <p className="text-white text-center text-[0.8rem] mt-[40px]">pushups / 3 sec</p>
+                           <canvas ref={pushupGaugeCanvasRef} id="pushupGauge" className="mt-[-90px]"></canvas>
                         </div>
                      </div>
                   </div>
@@ -411,9 +399,9 @@ const Squat = () => {
                <div className="col-md-12">
                   <div className="card">
                      <div className="card-body">
-                        <h5 className="text-white graph-title">Squat Graph</h5>
+                        <h5 className="text-white graph-title">Push Up Graph</h5>
                         <div className="chart-container">
-                           <canvas ref={squatChartCanvasRef} id="squatChart"></canvas>
+                           <canvas ref={pushupChartCanvasRef} id="pushupChart"></canvas>
                         </div>
                      </div>
                   </div>
@@ -422,8 +410,9 @@ const Squat = () => {
          </div>
 
          <div>
-            <button id="export-squat" onClick={exportData}>Export Squat Graph</button>
+            <button id="export-pushup" onClick={exportData}>Export Push Up Graph</button>
          </div>
+
 
          <hr className='h-[3px] bg-blue-500 mt-20 mb-10'></hr>
          <HeartRate />
@@ -435,6 +424,8 @@ const Squat = () => {
                onSubmit={resetExercise}
             />
          }
+
+
          {
             submitDialog &&
             <SubmitDialog
@@ -448,4 +439,4 @@ const Squat = () => {
    );
 };
 
-export default Squat; 
+export default Pushup;

@@ -1,3 +1,4 @@
+import { disconnectFromWebSocket } from "../lib/wsClient"
 //Token Handlers
 export function saveToken(token) {
    localStorage.setItem('token', token);
@@ -31,6 +32,8 @@ export function addAuth(token, credentials) {
 }
 
 export function removeAuth() {
+   disconnectFromWebSocket();
+
    localStorage.removeItem('token');
    localStorage.removeItem('credentials');
    localStorage.removeItem('device');

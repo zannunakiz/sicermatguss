@@ -35,12 +35,6 @@ const HomePage = () => {
          to: "/exercises/squat",
       },
       {
-         title: "Jumps",
-         description: "Improve your explosive power and cardiovascular fitness with various jumping exercises.",
-         icon: () => <img src="icon/jumpWhite.svg" alt="icon"></img>,
-         to: "/exercises/jump",
-      },
-      {
          title: "Punches",
          description: "Enhance your upper body coordination and burn calories with boxing-inspired movements.",
          icon: () => <img src="icon/punchWhite.svg" alt="icon"></img>,
