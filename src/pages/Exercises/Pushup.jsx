@@ -185,11 +185,10 @@ const Pushup = () => {
       setIsRunning(false);
    };
 
-   // Update data function
    const updateData = useCallback((data) => {
       if (!isFetching) return;
 
-      const detectedPushups = data.pushupCount || 1; // TODO: Make sure this is correct
+      const detectedPushups = data.pushupCount || 1; 
 
       setPushUpCount(prev => prev + detectedPushups);
       setPushUpSet(prev => prev + detectedPushups);
@@ -202,7 +201,6 @@ const Pushup = () => {
       }
       lastPushupTimeRef.current = currentTime;
 
-      // Update chart every 3 seconds
       if (currentTime % 3 === 0) {
          pushupGaugeRef.current.set(pushUpSet);
 
@@ -242,7 +240,7 @@ const Pushup = () => {
       window.handlePushupData = handlePushupData;
 
       return () => {
-         delete window.handlePushupData;
+         if (window.handlePushupData) delete window.handlePushupData;
       };
    }, [handlePushupData]);
 
