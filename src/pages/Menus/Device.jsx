@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect } from "react"
-import { RefreshCw, Watch, Wifi } from 'lucide-react'
+import { BluetoothOff, RefreshCw, Watch, Wifi } from 'lucide-react'
+import { useEffect, useRef, useState } from "react"
 import { getDevices } from '../../actions/deviceActions'
 import BluetoothDevice from '../../components/BluetoothDevice'
 import DevicePopup from '../../components/DevicePopup'
@@ -15,7 +15,31 @@ const Device = () => {
    const [refetch, setRefetch] = useState(false)
    const isFirstRender = useRef(true);
    const toast = useToast()
+   const [deviceStatus, setDeviceStatus] = useState({});
+
+
    const { pairedDevice } = usePairedDevice()
+
+
+   useEffect(() => {
+      const updateDeviceStatus = () => {
+         const status = JSON.parse(localStorage.getItem("paired_devices") || "{}");
+         setDeviceStatus(status);
+      };
+
+      updateDeviceStatus();
+      const interval = setInterval(updateDeviceStatus, 1000);
+      return () => clearInterval(interval);
+   }, []);
+
+   const handleDeviceClick = (device) => {
+      if (!deviceStatus[device.uuid]) {
+         toast.error("This device is currently offline");
+         return;
+      }
+      setSelectedDevice(device);
+      setShowPopup(true);
+   };
 
    useEffect(() => {
       const fetchDevices = async () => {
@@ -66,10 +90,7 @@ const Device = () => {
       }
    }
 
-   const handleDeviceClick = (device) => {
-      setSelectedDevice(device)
-      setShowPopup(true)
-   }
+
 
    const closePopup = () => {
       setShowPopup(false)
@@ -154,7 +175,7 @@ const Device = () => {
                      {devices.map((device, index) => (
                         <li
                            key={index}
-                           className="px-6 py-4 hover:bg-slate-700 cursor-pointer transition-colors duration-150"
+                           className={`px-6 py-4 ${deviceStatus[device.uuid] ? 'hover:bg-slate-700 cursor-pointer' : 'opacity-50 cursor-not-allowed'} transition-colors duration-150`}
                            onClick={() => handleDeviceClick(device)}
                         >
                            <div className="flex items-center justify-between">
@@ -164,6 +185,12 @@ const Device = () => {
                                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-400 bg-green-900 bg-opacity-30 px-2 py-0.5 rounded-full">
                                        <Wifi size={12} />
                                        Paired
+                                    </span>
+                                 )}
+                                 {!deviceStatus[device.uuid] && (
+                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-400 bg-red-900 bg-opacity-30 px-2 py-0.5 rounded-full">
+                                       <BluetoothOff size={12} />
+                                       Offline
                                     </span>
                                  )}
                               </div>
@@ -193,11 +220,7 @@ const Device = () => {
                      ))}
                   </ul>
                )}
-
-
-
             </div>
-
             <BluetoothDevice />
          </div>
 

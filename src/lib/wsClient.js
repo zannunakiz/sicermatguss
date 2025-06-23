@@ -7,6 +7,36 @@ let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_INTERVAL = 3000; // 3 detik
 
+// 🔁 Reconnect otomatis
+function reconnect() {
+   if (isConnected) return;
+   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.error('[WebSocket] ❌ Mencoba sambung ulang gagal setelah beberapa kali percobaan.');
+      isReconnecting = false;
+      return;
+   }
+
+   reconnectAttempts++;
+   console.log(`[WebSocket] 🔁 Mencoba sambung ulang (percobaan ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+
+   setTimeout(() => {
+      const success = establishConnection(); // Fungsi untuk connect ke WebSocket
+      if (success === true) {
+         console.log('[WebSocket] ✅ Berhasil tersambung ulang!');
+         isReconnecting = false;
+         reconnectAttempts = 0;
+         return;
+      }
+      reconnect(); // Lanjutkan ke percobaan berikutnya
+   }, RECONNECT_INTERVAL);
+}
+
+function startReconnect() {
+   if (isReconnecting) return;
+   isReconnecting = true;
+   reconnect();
+}
+
 // 🔁 Fungsi utama connect ke WebSocket
 function establishConnection() {
    if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
@@ -29,10 +59,7 @@ function establishConnection() {
    socket.onclose = () => {
       console.warn('[WebSocket] ❌ Terputus dari server.');
       isConnected = false;
-
-      if (!isReconnecting) {
-         startReconnect();
-      }
+      startReconnect();
    };
 
    socket.onerror = (err) => {
@@ -66,20 +93,7 @@ function establishConnection() {
    };
 }
 
-// 🔁 Reconnect otomatis
-function startReconnect() {
-   isReconnecting = true;
-   reconnectAttempts++;
 
-   if (reconnectAttempts <= MAX_RECONNECT_ATTEMPTS) {
-      console.log(`[WebSocket] 🔁 Mencoba sambung ulang (percobaan ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
-      setTimeout(() => {
-         establishConnection();
-      }, RECONNECT_INTERVAL);
-   } else {
-      console.error('[WebSocket] ❌ Melebihi batas percobaan sambung ulang.');
-   }
-}
 
 // 📤 Kirim init_ws
 function sendInitWs() {
@@ -141,11 +155,4 @@ export function disconnectFromWebSocket() {
    isConnected = false;
    isReconnecting = false;
    socket = null;
-}
-
-// 🔄 Reconnect manual
-export function reconnectWebSocket() {
-   if (!isConnected) {
-      establishConnection();
-   }
 }

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { useToast } from "./ToastContext";
 
 const PairedDeviceContext = createContext(null);
 
@@ -9,7 +10,7 @@ export const PairedDeviceProvider = ({ children }) => {
       ssid: "",
       password: ""
    });
-
+   const toast = useToast();
 
    useEffect(() => {
       const savedDevice = localStorage.getItem("device");
@@ -21,15 +22,29 @@ export const PairedDeviceProvider = ({ children }) => {
             console.error("Failed to parse saved device:", e);
          }
       }
-      else {
-         setPairedDevice({
-            device_uuid: "",
-            name: "",
-            ssid: "",
-            password: ""
-         });
-      }
    }, []);
+
+   // Add status monitoring
+   useEffect(() => {
+      const checkDeviceStatus = () => {
+         if (pairedDevice.device_uuid) {
+            const paired_devices = JSON.parse(localStorage.getItem("paired_devices") || "{}");
+            if (!paired_devices[pairedDevice.device_uuid]) {
+               toast.warning("Device has gone offline. You have been disconnected.");
+               setPairedDevice({
+                  device_uuid: "",
+                  name: "",
+                  ssid: "",
+                  password: ""
+               });
+               localStorage.removeItem("device");
+            }
+         }
+      };
+
+      const interval = setInterval(checkDeviceStatus, 1000);
+      return () => clearInterval(interval);
+   }, [pairedDevice.device_uuid, toast]);
 
    const updatePairedDevice = (data) => {
       setPairedDevice((prev) => {
@@ -46,5 +61,4 @@ export const PairedDeviceProvider = ({ children }) => {
    );
 };
 
-// Custom hook biar gampang manggil
 export const usePairedDevice = () => useContext(PairedDeviceContext);

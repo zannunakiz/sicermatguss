@@ -1,7 +1,7 @@
 "use client";
 
-import { Edit3, Link2, XCircle } from "lucide-react";
-import { useState } from "react";
+import { BluetoothOff, Edit3, Link2, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { updateDeviceName } from "../actions/deviceActions";
 import { usePairedDevice } from "../context/PairedDeviceContext";
 import { useToast } from "../context/ToastContext";
@@ -61,6 +61,19 @@ const DevicePopup = ({ device, onClose, refetch, setRefetch }) => {
       }
    };
 
+   const [deviceStatus, setDeviceStatus] = useState(false);
+
+   useEffect(() => {
+      const checkStatus = () => {
+         const status = JSON.parse(localStorage.getItem("paired_devices") || "{}");
+         setDeviceStatus(status[device.uuid] || false);
+      };
+
+      checkStatus();
+      const interval = setInterval(checkStatus, 1000);
+      return () => clearInterval(interval);
+   }, [device.uuid]);
+
    return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
          <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md md:min-w-[500px] overflow-hidden relative">
@@ -98,15 +111,30 @@ const DevicePopup = ({ device, onClose, refetch, setRefetch }) => {
             <div className="p-6">
                {activeTab === "pair" && (
                   <div className="text-center">
-                     <p className="text-gray-300 mb-6">Pair with device?</p>
-                     <button
-                        className="flex mx-auto items-center justify-center gap-2 bg-slate-600 hover:bg-slate-500 text-white font-bold px-4 py-2 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
-                        onClick={() => handleSubmit("pair")}
-                        disabled={loading}
-                     >
-                        <Link2 className="w-4 h-4" />
-                        {loading ? "Pairing..." : "Click to Pair"}
-                     </button>
+                     {deviceStatus ? (
+                        <>
+                           <p className="text-gray-300 mb-6">Pair with device?</p>
+                           <button
+                              className="flex mx-auto items-center justify-center gap-2 bg-slate-600 hover:bg-slate-500 text-white font-bold px-4 py-2 rounded transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                              onClick={() => handleSubmit("pair")}
+                              disabled={loading}
+                           >
+                              <Link2 className="w-4 h-4" />
+                              {loading ? "Pairing..." : "Click to Pair"}
+                           </button>
+                        </>
+                     ) : (
+                        <>
+                           <p className="text-red-400 mb-6">Device is currently offline</p>
+                           <button
+                              className="flex mx-auto items-center justify-center gap-2 bg-slate-600 text-white font-bold px-4 py-2 rounded opacity-50 cursor-not-allowed"
+                              disabled
+                           >
+                              <BluetoothOff className="w-4 h-4" />
+                              Device Offline
+                           </button>
+                        </>
+                     )}
                   </div>
                )}
 

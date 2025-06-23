@@ -11,7 +11,15 @@ export const ToastProvider = ({ children }) => {
    const addToast = useCallback((type, message) => {
       const id = Date.now();
       const newToast = { id, type, message };
-      setToasts(prev => [...prev, newToast]);
+
+      setToasts(prev => {
+         let updatedToasts = [...prev];
+         if (updatedToasts.length >= 3) {
+            // Remove the oldest toast
+            updatedToasts.shift();
+         }
+         return [...updatedToasts, newToast];
+      });
 
       setTimeout(() => {
          setToasts(prev => prev.filter(t => t.id !== id));

@@ -91,16 +91,16 @@ const HomePage = () => {
                      <Laptop className="h-5 w-5" />
                      Connect Device
                   </Link>
-                  <button className="px-6 py-3 border border-blue-400 hover:border-blue-300 text-blue-300 hover:text-blue-200 font-medium rounded-lg transition-all duration-200 flex items-center gap-2">
+                  <a href="#exercises" className="px-6 py-3 border border-blue-400 hover:border-blue-300 text-blue-300 hover:text-blue-200 font-medium rounded-lg transition-all duration-200 flex items-center gap-2">
                      <Dumbbell className="h-5 w-5" />
                      Start Exercise
-                  </button>
+                  </a>
                </div>
             </div>
          </div>
 
          {/* Exercise Library Section */}
-         <div className="mb-12">
+         <div id="exercises" className="mb-12">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-8">
                <div>
                   <div className="inline-block px-3 py-1 mb-3 text-xs font-semibold text-blue-100 bg-blue-900 bg-opacity-50 rounded-full">
@@ -126,28 +126,10 @@ const HomePage = () => {
             </div>
          </div>
 
-         {/* Stats Section */}
-         <div className="bg-slate-800 bg-opacity-50 rounded-xl p-6 mb-8">
-            <h3 className="text-xl text-white font-bold mb-4">Your Progress</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-               <div className="bg-slate-700 bg-opacity-50 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Total Workouts</p>
-                  <p className="text-3xl font-bold text-white">24</p>
-               </div>
-               <div className="bg-slate-700 bg-opacity-50 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Calories Burned</p>
-                  <p className="text-3xl font-bold text-white">1,248</p>
-               </div>
-               <div className="bg-slate-700 bg-opacity-50 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Minutes Active</p>
-                  <p className="text-3xl font-bold text-white">186</p>
-               </div>
-               <div className="bg-slate-700 bg-opacity-50 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Streak</p>
-                  <p className="text-3xl font-bold text-white">5 days</p>
-               </div>
-            </div>
+         <div>
+            <p className="font-light text-gray-400 text-xs tracking-wider">Copyright &copy; 2025 SICERMAT || UNNES COMPUTER ENGINEERING 2022 || CAPSTONE TEAM 4</p>
          </div>
+
       </div>
    )
 }

@@ -40,7 +40,6 @@ const Punch = () => {
 
    const intervalRef = useRef(null);
 
-   // TODO: perlu logika buat destroy window.handlePunchData saat leave page
    const startExercise = () => {
       if (pairedDevice.name === "") {
          toast.error("No device connected");
@@ -54,7 +53,6 @@ const Punch = () => {
 
          const device = JSON.parse(localStorage.getItem("device") || "{}");
          console.log(`[Punch] device: ${JSON.stringify(device)}`);
-         // Kalau mulai (ON)
          if (nextState) {
             const notify_status = sendWSMessage({ type: "start_session", data: { sport_type: "punch", device_uuid: device.device_uuid } });
             if (notify_status) {
@@ -68,13 +66,7 @@ const Punch = () => {
                }
                console.log(`[Punch on] after: ${window.handlePunchData}`);
             }
-            // fetchData("punch");
-            // intervalRef.current = setInterval(() => {
-            //    fetchData("punch");
-            // }, 500);
          } else {
-            // Kalau berhenti (OFF)
-            // sendWSMessage({ type: "save_session", data: { sport_type: "punch" } });
             const notify_status = sendWSMessage({ type: "pause_session", data: { sport_type: "punch", device_uuid: device.device_uuid } });
             if (!notify_status) {
                toast.error("Failed to pause session");
@@ -93,7 +85,6 @@ const Punch = () => {
    };
 
    useEffect(() => {
-      // Initialize punch power gauge
       punchPowerGaugeRef.current = new window.Gauge(punchPowerGaugeCanvasRef.current).setOptions({
          angle: 0.1,
          lineWidth: 0.44,
@@ -120,7 +111,6 @@ const Punch = () => {
       punchPowerGaugeRef.current.setMinValue(0);
       punchPowerGaugeRef.current.set(0);
 
-      // Initialize retraction time gauge
       retractionTimeGaugeRef.current = new window.Gauge(retractionTimeGaugeCanvasRef.current).setOptions({
          angle: 0.1,
          lineWidth: 0.44,
@@ -206,8 +196,6 @@ const Punch = () => {
    //    setIsRunning(false);
    // };
 
-
-
    // Dynamic Punch Image
    const renderPunchTypeIcon = (type) => {
 
@@ -280,11 +268,9 @@ const Punch = () => {
       }
    }, [isFetching, updateData]);
 
-   // ⚡ Langsung assign saat mount
    useEffect(() => {
       window.handlePunchData = handlePunchData;
 
-      // Bersihkan saat unmount
       return () => {
          if (window.handlePunchData) {
             delete window.handlePunchData;
@@ -342,32 +328,6 @@ const Punch = () => {
       URL.revokeObjectURL(url);
    };
 
-   // Simulate data updates when fetching
-   // useEffect(() => {
-   //    if (!isFetching) return;
-
-   //    const interval = setInterval(() => {
-   //       updateData({
-   //          punchPower: Math.floor(Math.random() * 100),
-   //          retractionTime: Math.floor(Math.random() * 100)
-   //       });
-   //    }, 1000);
-
-   //    return () => clearInterval(interval);
-   // }, [isFetching, timeElapsedPunch, updateData]);
-
-   // useEffect(() => {
-   //    window.handlePunchData = (data) => {
-   //       console.log(`[Punch] Received data: ${JSON.stringify(data)}`);
-   //       if (isFetching) {
-   //          updateData(data);
-   //       }
-   //    };
-
-   //    return () => {
-   //       delete window.handlePunchData;
-   //    };
-   // }, [isFetching, updateData]);
 
    return (
       <section id="punch-content" className='overflow-x-hidden'>

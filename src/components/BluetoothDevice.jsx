@@ -1,8 +1,8 @@
 import { Bluetooth, BluetoothOff, CheckCircle2, Info, Loader2, RefreshCw, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
+import { pairDevice } from "../actions/deviceActions";
 import { usePairedDevice } from "../context/PairedDeviceContext";
 import { useToast } from "../context/ToastContext";
-import { pairDevice } from "../actions/deviceActions";
 
 const BluetoothDevice = () => {
    const [isBluetoothSupported, setIsBluetoothSupported] = useState(true);
@@ -13,7 +13,7 @@ const BluetoothDevice = () => {
    const [pairedDevices, setPairedDevices] = useState([]);
    const [showWifiModal, setShowWifiModal] = useState(false);
    const [wifiCredentials, setWifiCredentials] = useState({});
-   const [connectingDevice, setConnectingDevice] = useState(null); 
+   const [connectingDevice, setConnectingDevice] = useState(null);
    const [wifiTimeoutId, setWifiTimeoutId] = useState(null);
 
    const CUSTOM_SERVICE_UUID = "c93138c5-5259-4c29-bb5e-750f55cc9a71";
@@ -84,7 +84,8 @@ const BluetoothDevice = () => {
    //             password: wifiCredentials.password
    //          });
    //          if (status){
-   //             updatePairedDevice({
+   //             update
+   // Device({
    //                device_uuid: connectingDevice.name,
    //                name: connectingDevice.name,
    //                ssid: wifiCredentials.ssid,
@@ -229,7 +230,7 @@ const BluetoothDevice = () => {
       // Definisikan window.pairRequest secara langsung
       window.pairRequest = async (deviceUuid, status) => {
          console.log(`[Bluetooth] ESP32 Respon: ${deviceUuid}, Status: ${status}`);
-         
+
          if (currentDevice && currentDevice.name === deviceUuid && status) {
             toast.success("✅ ESP32 berhasil konek ke WiFi!");
             console.log("✅ ESP32 berhasil konek ke WiFi!");
@@ -264,11 +265,11 @@ const BluetoothDevice = () => {
       try {
          const rxChar = currentDevice.rxChar;
          const encoder = new TextEncoder();
-         const wifiData = JSON.stringify({ 
-            ssid, 
-            password, 
-            user_uuid: user.uuid, 
-            coba: '🔑lorem ipsum dolor sit amet' 
+         const wifiData = JSON.stringify({
+            ssid,
+            password,
+            user_uuid: user.uuid,
+            coba: '🔑lorem ipsum dolor sit amet'
          });
 
          await rxChar.writeValue(encoder.encode(wifiData));
@@ -278,7 +279,7 @@ const BluetoothDevice = () => {
          const timeoutId = setTimeout(() => {
             toast.error("⏰ No response from ESP32. Please try again.");
             setWifiCredentials({});
-            
+
             // Hapus listener setelah timeout
             if (window.pairRequest) {
                delete window.pairRequest;
@@ -296,7 +297,7 @@ const BluetoothDevice = () => {
 
    return (
       <div>
-         <div className="max-w-4xl mx-auto">
+         <div className="max-w-4xl mx-auto mt-10">
             <header className="mb-8">
                <h1 className="text-3xl font-bold text-gray-100 flex items-center gap-3">
                   <Bluetooth className="text-blue-400" size={28} />
@@ -348,23 +349,22 @@ const BluetoothDevice = () => {
                            <button
                               onClick={scanForDevices}
                               disabled={isScanning || isPairing}
-                              className={`relative overflow-hidden group text-sm font-medium text-white py-2 px-4 rounded shadow transition-colors duration-300 ${
-                                 isScanning || isPairing
-                                    ? "bg-slate-600 opacity-50 cursor-not-allowed"
-                                    : "bg-slate-700 hover:bg-slate-600"
-                              }`}
+                              className={`relative overflow-hidden group text-sm font-medium text-white py-2 px-4 rounded shadow transition-colors duration-300 ${isScanning || isPairing
+                                 ? "bg-slate-600 opacity-50 cursor-not-allowed"
+                                 : "bg-slate-700 hover:bg-slate-600"
+                                 }`}
                            >
                               <span className="relative z-10 flex items-center gap-2">
                                  {isScanning ? (
-                                   <>
-                                      <Loader2 className="animate-spin" size={16} />
-                                      Scanning...
-                                   </>
+                                    <>
+                                       <Loader2 className="animate-spin" size={16} />
+                                       Scanning...
+                                    </>
                                  ) : (
-                                   <>
-                                      <RefreshCw size={16} />
-                                      Scan for BLE Devices
-                                   </>
+                                    <>
+                                       <RefreshCw size={16} />
+                                       Scan for BLE Devices
+                                    </>
                                  )}
                               </span>
                            </button>
@@ -465,9 +465,8 @@ const BluetoothDevice = () => {
                            <button
                               onClick={scanForDevices}
                               disabled={isPairing}
-                              className={`mt-4 relative overflow-hidden group text-sm font-medium text-white bg-slate-700 py-1.5 px-4 rounded shadow hover:bg-slate-600 transition-colors duration-300 ${
-                                 isPairing ? "opacity-50 cursor-not-allowed" : ""
-                              }`}
+                              className={`mt-4 relative overflow-hidden group text-sm font-medium text-white bg-slate-700 py-1.5 px-4 rounded shadow hover:bg-slate-600 transition-colors duration-300 ${isPairing ? "opacity-50 cursor-not-allowed" : ""
+                                 }`}
                            >
                               <span className="relative z-10 flex items-center gap-2">
                                  <RefreshCw size={16} />
@@ -509,11 +508,10 @@ const BluetoothDevice = () => {
                                        <button
                                           onClick={() => connectToDevice(device)}
                                           disabled={isPairing || isConnected}
-                                          className={`text-sm font-medium text-white py-1.5 px-4 rounded shadow transition-colors duration-300 ${
-                                             isPairing || isConnected
-                                                ? "bg-slate-600 opacity-50 cursor-not-allowed"
-                                                : "bg-slate-700 hover:bg-slate-600"
-                                          }`}
+                                          className={`text-sm font-medium text-white py-1.5 px-4 rounded shadow transition-colors duration-300 ${isPairing || isConnected
+                                             ? "bg-slate-600 opacity-50 cursor-not-allowed"
+                                             : "bg-slate-700 hover:bg-slate-600"
+                                             }`}
                                        >
                                           {isCurrentlyPairing ? (
                                              <span className="flex items-center gap-2">

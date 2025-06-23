@@ -1,288 +1,325 @@
-import { ChevronDown, ChevronUp } from "lucide-react"
-import { useState } from "react"
-import {
-   Bar,
-   BarChart,
-   CartesianGrid,
-   Legend,
-   Line,
-   LineChart,
-   PolarAngleAxis,
-   PolarGrid,
-   PolarRadiusAxis,
-   Radar,
-   RadarChart,
-   ResponsiveContainer,
-   Tooltip,
-   XAxis,
-   YAxis,
-} from "recharts"
+"use client"
 
-// Mock data - replace with your actual data
-const workoutSessions = [
-   {
-      id: 1,
-      date: "2023-05-01",
-      situps: 30,
-      punches: 50,
-      squats: 25,
-      jumps: 20,
-      pushups: 15,
-      punchMaxPower: 85,
-      jumpMaxHeight: 24,
-      avgHeartRate: 125,
-   },
-   {
-      id: 2,
-      date: "2023-05-03",
-      situps: 35,
-      punches: 60,
-      squats: 30,
-      jumps: 25,
-      pushups: 20,
-      punchMaxPower: 90,
-      jumpMaxHeight: 26,
-      avgHeartRate: 130,
-   },
-   {
-      id: 3,
-      date: "2023-05-05",
-      situps: 40,
-      punches: 70,
-      squats: 35,
-      jumps: 30,
-      pushups: 25,
-      punchMaxPower: 95,
-      jumpMaxHeight: 28,
-      avgHeartRate: 135,
-   },
-   {
-      id: 4,
-      date: "2023-05-07",
-      situps: 45,
-      punches: 80,
-      squats: 40,
-      jumps: 35,
-      pushups: 30,
-      punchMaxPower: 100,
-      jumpMaxHeight: 30,
-      avgHeartRate: 140,
-   },
-   {
-      id: 5,
-      date: "2023-05-09",
-      situps: 50,
-      punches: 90,
-      squats: 45,
-      jumps: 40,
-      pushups: 35,
-      punchMaxPower: 105,
-      jumpMaxHeight: 32,
-      avgHeartRate: 145,
-   },
-]
+import { useState, useEffect } from "react"
+import { getHistoryDummy } from "../../actions/historyActions"
+import Sessions from "../../components/Sessions"
+import LoadingSpinner from "../../components/LoadingSpinner"
+import HrSpoChart from "../../components/HrSpoChart"
+import ExerciseChart from "../../components/ExerciseChart"
+import DetailedSession from "../../components/DetailedSession"
+import { Activity, Heart, Droplets, Target, HistoryIcon } from "lucide-react"
+
+// Import Chart.js
+import {
+   Chart as ChartJS,
+   CategoryScale,
+   LinearScale,
+   PointElement,
+   LineElement,
+   Title,
+   Tooltip,
+   Legend,
+   BarElement,
+} from "chart.js"
+import { useMobile } from "../../actions/use-mobile"
+
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend)
 
 const History = () => {
+   const [historyData, setHistoryData] = useState(null)
    const [selectedSession, setSelectedSession] = useState(null)
-   const [expanded, setExpanded] = useState(false)
+   const [groupSessions, setGroupSessions] = useState({}) // { a: session, b: session }
+   const [loading, setLoading] = useState(true)
+   const [error, setError] = useState(null)
+   const [sessionsExpanded, setSessionsExpanded] = useState(true)
+   const isMobile = useMobile()
 
-   const handleSessionClick = (session) => {
-      setSelectedSession(session)
+   const fetchData = async () => {
+      try {
+         setLoading(true)
+         // Simulate loading delay
+         await new Promise((resolve) => setTimeout(resolve, 1500))
+         const data = getHistoryDummy()
+         setHistoryData(data)
+         if (data.logs.length > 0) {
+            setSelectedSession(data.logs[0])
+         }
+      } catch (err) {
+         setError(err.message)
+      } finally {
+         setLoading(false)
+      }
    }
 
-   const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      return date.toLocaleDateString("en-US", {
-         year: "numeric",
-         month: "short",
-         day: "numeric",
+   const calculateAverages = (sessionData) => {
+      if (!sessionData?.data) return { avgHR: 0, avgSpO2: 0, avgStatus: "UNKNOWN" }
+
+      const timeIntervals = Object.keys(sessionData.data).filter((key) => key !== "total_count")
+      const validData = timeIntervals.filter(
+         (time) => sessionData.data[time].heart?.heart_rate && sessionData.data[time].heart?.spo2,
+      )
+
+      if (validData.length === 0) return { avgHR: 0, avgSpO2: 0, avgStatus: "UNKNOWN" }
+
+      const avgHR = Math.round(
+         validData.reduce((sum, time) => sum + sessionData.data[time].heart.heart_rate, 0) / validData.length,
+      )
+      const avgSpO2 = Math.round(
+         validData.reduce((sum, time) => sum + sessionData.data[time].heart.spo2, 0) / validData.length,
+      )
+
+      // Calculate most common status
+      const statusCounts = {}
+      validData.forEach((time) => {
+         const status = sessionData.data[time].status
+         statusCounts[status] = (statusCounts[status] || 0) + 1
       })
+      const avgStatus = Object.keys(statusCounts).reduce((a, b) => (statusCounts[a] > statusCounts[b] ? a : b))
+
+      return { avgHR, avgSpO2, avgStatus }
    }
 
-   // Prepare data for the radar chart
-   const prepareRadarData = (session) => {
-      if (!session) return []
-
-      return [
-         {
-            exercise: "Situps",
-            count: session.situps,
-         },
-         {
-            exercise: "Punches",
-            count: session.punches,
-         },
-         {
-            exercise: "Squats",
-            count: session.squats,
-         },
-         {
-            exercise: "Jumps",
-            count: session.jumps,
-         },
-         {
-            exercise: "Pushups",
-            count: session.pushups,
-         },
-      ]
+   const getStatusBadgeColor = (status) => {
+      switch (status) {
+         case "EXCELLENT":
+            return "bg-green-500 text-white"
+         case "GOOD":
+            return "bg-blue-500 text-white"
+         case "FAIR":
+            return "bg-yellow-500 text-white"
+         case "POOR":
+            return "bg-red-500 text-white"
+         default:
+            return "bg-gray-500 text-white"
+      }
    }
 
-   // Prepare data for the progress chart
-   const prepareProgressData = () => {
-      return workoutSessions.map((session) => ({
-         date: formatDate(session.date),
-         situps: session.situps,
-         punches: session.punches,
-         squats: session.squats,
-         jumps: session.jumps,
-         pushups: session.pushups,
-      }))
+   // Check if we're in group comparison mode
+   const isGroupMode = Object.keys(groupSessions).length > 0
+   const sessionA = groupSessions.a
+   const sessionB = groupSessions.b
+
+   // Calculate averages for group sessions
+   const averagesA = sessionA ? calculateAverages(sessionA) : null
+   const averagesB = sessionB ? calculateAverages(sessionB) : null
+
+   useEffect(() => {
+      fetchData()
+   }, [])
+
+   if (loading) {
+      return (
+         <div className="bg-slate-800 text-white min-h-screen p-4 lg:p-6 flex items-center justify-center">
+            <LoadingSpinner size="large" text="Loading exercise history..." />
+         </div>
+      )
    }
+
+   if (error) {
+      return (
+         <div className="bg-slate-800 text-white min-h-screen p-4 lg:p-6 flex items-center justify-center">
+            <div className="text-center">
+               <div className={`${isMobile ? "text-4xl" : "text-6xl"} mb-4`}>⚠️</div>
+               <div className={`${isMobile ? "text-lg" : "text-xl"} text-red-400 mb-2`}>Error Loading Data</div>
+               <div className={`${isMobile ? "text-sm" : ""} text-slate-400`}>{error}</div>
+            </div>
+         </div>
+      )
+   }
+
+   const averages = selectedSession ? calculateAverages(selectedSession) : null
 
    return (
-      <div className="bg-slate-800 text-white min-h-screen p-6">
-         <h1 className="text-3xl font-bold mb-6">Workout History</h1>
-
-         {/* Sessions List */}
-         <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-               <h2 className="text-xl font-semibold">Recent Sessions</h2>
-               <button onClick={() => setExpanded(!expanded)} className="flex items-center text-slate-300 hover:text-white">
-                  {expanded ? (
-                     <>
-                        <span>Collapse</span>
-                        <ChevronUp className="ml-1 h-5 w-5" />
-                     </>
-                  ) : (
-                     <>
-                        <span>Expand</span>
-                        <ChevronDown className="ml-1 h-5 w-5" />
-                     </>
-                  )}
-               </button>
-            </div>
-
-            <div
-               className={`bg-slate-700 rounded-lg overflow-hidden ${expanded ? "max-h-none" : "max-h-64 overflow-y-auto"}`}
-            >
-               {workoutSessions.map((session) => (
-                  <div
-                     key={session.id}
-                     onClick={() => handleSessionClick(session)}
-                     className={`p-4 border-b border-slate-600 cursor-pointer hover:bg-slate-600 transition-colors ${selectedSession?.id === session.id ? "bg-slate-600" : ""}`}
-                  >
-                     <div className="flex justify-between items-center">
-                        <div>
-                           <h3 className="font-medium">Session #{session.id}</h3>
-                           <p className="text-slate-300 text-sm">{formatDate(session.date)}</p>
-                        </div>
-                        <div className="text-right">
-                           <p className="text-emerald-400">
-                              {session.situps + session.punches + session.squats + session.jumps + session.pushups} exercises
-                           </p>
-                           <p className="text-slate-300 text-sm">Avg HR: {session.avgHeartRate} bpm</p>
-                        </div>
-                     </div>
-                  </div>
-               ))}
-            </div>
+      <div className="bg-slate-800 text-white min-h-screen p-3 lg:p-6  rounded-lg">
+         <div className="flex items-center gap-3 mb-4 lg:mb-6">
+            <HistoryIcon className={`${isMobile ? "w-6 h-6" : "w-8 h-8"} text-blue-400`} />
+            <h1 className={`${isMobile ? "text-xl" : "text-2xl lg:text-3xl"} font-bold`}>Exercise History</h1>
          </div>
 
-         {/* Overall Progress Chart */}
-         <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4">Overall Progress</h2>
-            <div className="bg-slate-700 p-4 rounded-lg">
-               <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={prepareProgressData()}>
-                     <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                     <XAxis dataKey="date" stroke="#cbd5e1" />
-                     <YAxis stroke="#cbd5e1" />
-                     <Tooltip
-                        contentStyle={{ backgroundColor: "#1e293b", border: "none", borderRadius: "0.5rem" }}
-                        itemStyle={{ color: "#fff" }}
-                     />
-                     <Legend />
-                     <Line type="monotone" dataKey="situps" stroke="#3b82f6" strokeWidth={2} />
-                     <Line type="monotone" dataKey="punches" stroke="#ef4444" strokeWidth={2} />
-                     <Line type="monotone" dataKey="squats" stroke="#10b981" strokeWidth={2} />
-                     <Line type="monotone" dataKey="jumps" stroke="#f59e0b" strokeWidth={2} />
-                     <Line type="monotone" dataKey="pushups" stroke="#8b5cf6" strokeWidth={2} />
-                  </LineChart>
-               </ResponsiveContainer>
-            </div>
+         {/* Sessions Panel - Now at the top */}
+         <div className="mb-4 lg:mb-6">
+            <Sessions
+               sessions={historyData?.logs || []}
+               selectedSession={selectedSession}
+               onSessionSelect={setSelectedSession}
+               isExpanded={sessionsExpanded}
+               onToggleExpanded={() => setSessionsExpanded(!sessionsExpanded)}
+               groupSessions={groupSessions}
+               onGroupSessionsChange={setGroupSessions}
+            />
          </div>
 
-         {/* Selected Session Details */}
-         {selectedSession && (
-            <div className="mb-8">
-               <h2 className="text-xl font-semibold mb-4">
-                  Session #{selectedSession.id} - {formatDate(selectedSession.date)}
-               </h2>
+         {/* Main Content - Full width */}
+         <div className={`space-y-${isMobile ? "4" : "6"}`}>
+            {(selectedSession || isGroupMode) && (
+               <>
+                  {/* Session Stats with Enhanced Hover Effects */}
+                  <div className="bg-slate-700 p-3 lg:p-6 rounded-lg shadow-lg hover:shadow-xl hover:shadow-slate-900/20 transition-all duration-300">
+                     <div className="flex items-center gap-2 mb-4">
+                        <Target className={`${isMobile ? "w-5 h-5" : "w-6 h-6"} text-emerald-400`} />
+                        <h2 className={`${isMobile ? "text-base" : "text-xl"} font-semibold`}>
+                           {isGroupMode
+                              ? "Group Comparison Summary"
+                              : `Summary ${selectedSession.exercise} Session - ${new Date(selectedSession.date).toLocaleDateString()}`}
+                        </h2>
+                     </div>
+                     <div className={`grid ${isMobile ? "grid-cols-2 gap-2" : "grid-cols-2 lg:grid-cols-4 gap-4"}`}>
+                        {/* Total Count Card */}
+                        <div className="bg-slate-800 p-3 lg:p-4 rounded-lg text-center border border-slate-600 hover:border-emerald-400/60 hover:bg-gradient-to-br hover:from-slate-800 hover:to-emerald-900/20 hover:shadow-lg hover:shadow-emerald-400/20 hover:scale-105 transition-all duration-300 cursor-pointer group">
+                           <div className="flex items-center justify-center gap-2 mb-2">
+                              <Target
+                                 className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-emerald-400 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300`}
+                              />
+                           </div>
+                           <div
+                              className={`${isMobile ? "text-xl" : "text-2xl lg:text-3xl"} font-bold text-emerald-400 group-hover:text-emerald-300 group-hover:scale-110 transition-all duration-300`}
+                           >
+                              {isGroupMode ? (
+                                 <div className="space-y-1">
+                                    {sessionA && <div className="text-orange-400">{sessionA.data.total_count}</div>}
+                                    {sessionB && <div className="text-blue-400">{sessionB.data.total_count}</div>}
+                                    {sessionA && sessionB && <div className="text-xs text-slate-400">A / B</div>}
+                                 </div>
+                              ) : (
+                                 selectedSession.data.total_count
+                              )}
+                           </div>
+                           <div
+                              className={`${isMobile ? "text-xs" : "text-sm"} text-slate-300 group-hover:text-slate-200 transition-colors duration-300`}
+                           >
+                              Total Count
+                           </div>
+                        </div>
 
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Exercise Distribution */}
-                  <div className="bg-slate-700 p-4 rounded-lg">
-                     <h3 className="text-lg font-medium mb-3">Exercise Distribution</h3>
-                     <ResponsiveContainer width="100%" height={300}>
-                        <RadarChart outerRadius={90} data={prepareRadarData(selectedSession)}>
-                           <PolarGrid stroke="#475569" />
-                           <PolarAngleAxis dataKey="exercise" stroke="#cbd5e1" />
-                           <PolarRadiusAxis stroke="#cbd5e1" />
-                           <Radar name="Exercises" dataKey="count" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
-                           <Tooltip
-                              contentStyle={{ backgroundColor: "#1e293b", border: "none", borderRadius: "0.5rem" }}
-                              itemStyle={{ color: "#fff" }}
-                           />
-                        </RadarChart>
-                     </ResponsiveContainer>
-                  </div>
+                        {/* Heart Rate Card */}
+                        <div className="bg-slate-800 p-3 lg:p-4 rounded-lg text-center border border-slate-600 hover:border-red-400/60 hover:bg-gradient-to-br hover:from-slate-800 hover:to-red-900/20 hover:shadow-lg hover:shadow-red-400/20 hover:scale-105 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                           <div className="flex items-center justify-center gap-2 mb-2">
+                              <Heart
+                                 className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-red-400 group-hover:scale-125 group-hover:animate-pulse transition-all duration-300`}
+                              />
+                           </div>
+                           <div
+                              className={`${isMobile ? "text-xl" : "text-2xl lg:text-3xl"} font-bold text-red-400 group-hover:text-red-300 group-hover:scale-110 transition-all duration-300`}
+                           >
+                              {isGroupMode ? (
+                                 <div className="space-y-1">
+                                    {averagesA && <div className="text-orange-400">{averagesA.avgHR}</div>}
+                                    {averagesB && <div className="text-blue-400">{averagesB.avgHR}</div>}
+                                    {averagesA && averagesB && <div className="text-xs text-slate-400">A / B</div>}
+                                 </div>
+                              ) : (
+                                 averages?.avgHR || "N/A"
+                              )}
+                           </div>
+                           <div
+                              className={`${isMobile ? "text-xs" : "text-sm"} text-slate-300 group-hover:text-slate-200 transition-colors duration-300`}
+                           >
+                              Avg Heart Rate
+                           </div>
+                        </div>
 
-                  {/* Exercise Counts */}
-                  <div className="bg-slate-700 p-4 rounded-lg">
-                     <h3 className="text-lg font-medium mb-3">Exercise Counts</h3>
-                     <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={prepareRadarData(selectedSession)}>
-                           <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                           <XAxis dataKey="exercise" stroke="#cbd5e1" />
-                           <YAxis stroke="#cbd5e1" />
-                           <Tooltip
-                              contentStyle={{ backgroundColor: "#1e293b", border: "none", borderRadius: "0.5rem" }}
-                              itemStyle={{ color: "#fff" }}
-                           />
-                           <Bar dataKey="count" fill="#3b82f6" />
-                        </BarChart>
-                     </ResponsiveContainer>
-                  </div>
-               </div>
+                        {/* SpO2 Card */}
+                        <div className="bg-slate-800 p-3 lg:p-4 rounded-lg text-center border border-slate-600 hover:border-blue-400/60 hover:bg-gradient-to-br hover:from-slate-800 hover:to-blue-900/20 hover:shadow-lg hover:shadow-blue-400/20 hover:scale-105 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                           <div className="flex items-center justify-center gap-2 mb-2">
+                              <Droplets
+                                 className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-blue-400 group-hover:scale-125 group-hover:-rotate-12 transition-all duration-300`}
+                              />
+                           </div>
+                           <div
+                              className={`${isMobile ? "text-xl" : "text-2xl lg:text-3xl"} font-bold text-blue-400 group-hover:text-blue-300 group-hover:scale-110 transition-all duration-300`}
+                           >
+                              {isGroupMode ? (
+                                 <div className="space-y-1">
+                                    {averagesA && <div className="text-orange-400">{averagesA.avgSpO2}%</div>}
+                                    {averagesB && <div className="text-blue-400">{averagesB.avgSpO2}%</div>}
+                                    {averagesA && averagesB && <div className="text-xs text-slate-400">A / B</div>}
+                                 </div>
+                              ) : averages?.avgSpO2 ? (
+                                 `${averages.avgSpO2}%`
+                              ) : (
+                                 "N/A"
+                              )}
+                           </div>
+                           <div
+                              className={`${isMobile ? "text-xs" : "text-sm"} text-slate-300 group-hover:text-slate-200 transition-colors duration-300`}
+                           >
+                              Avg SpO₂
+                           </div>
+                        </div>
 
-               {/* Session Statistics */}
-               <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-700 p-4 rounded-lg">
-                     <h3 className="text-lg font-medium mb-2">Punch Power</h3>
-                     <div className="flex items-end">
-                        <span className="text-3xl font-bold text-red-500">{selectedSession.punchMaxPower}</span>
-                        <span className="ml-2 text-slate-300">max power</span>
+                        {/* Status Card */}
+                        <div className="bg-slate-800 p-3 lg:p-4 rounded-lg text-center border border-slate-600 hover:border-yellow-400/60 hover:bg-gradient-to-br hover:from-slate-800 hover:to-yellow-900/20 hover:shadow-lg hover:shadow-yellow-400/20 hover:scale-105 transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                           <div className="flex items-center justify-center gap-2 mb-2">
+                              <Activity
+                                 className={`${isMobile ? "w-4 h-4" : "w-5 h-5"} text-yellow-400 group-hover:scale-125 group-hover:rotate-180 transition-all duration-500`}
+                              />
+                           </div>
+                           <div className="flex justify-center mb-2">
+                              {isGroupMode ? (
+                                 <div className="space-y-1">
+                                    {averagesA && (
+                                       <span
+                                          className={`inline-block ${isMobile ? "w-16 text-center px-1 py-1 text-[10px]" : "w-20 text-center px-2 py-1 text-xs"} font-medium ${getStatusBadgeColor(averagesA.avgStatus)} group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 rounded-full  `}
+                                       >
+                                          {isMobile && averagesA.avgStatus
+                                             ? averagesA.avgStatus.substring(0, 4)
+                                             : averagesA.avgStatus || "N/A"}
+                                       </span>
+                                    )}
+                                    {averagesB && (
+                                       <span
+                                          className={`inline-block ${isMobile ? "w-16 text-center px-1 py-1 text-[10px]" : "w-20 text-center px-2 py-1 text-xs"} font-medium ${getStatusBadgeColor(averagesB.avgStatus)} group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 rounded-full`}
+                                       >
+                                          {isMobile && averagesB.avgStatus
+                                             ? averagesB.avgStatus.substring(0, 4)
+                                             : averagesB.avgStatus || "N/A"}
+                                       </span>
+                                    )}
+                                    {averagesA && averagesB && <div className="text-xs text-slate-400">A / B</div>}
+                                 </div>
+                              ) : (
+                                 <span
+                                    className={`inline-block ${isMobile ? "w-16 text-center px-1 py-1 text-xs" : "w-24 text-center px-2 py-1 text-sm"} font-medium ${getStatusBadgeColor(averages?.avgStatus)} group-hover:scale-110 group-hover:shadow-lg transition-all duration-300 rounded-full`}
+                                 >
+                                    {isMobile && averages?.avgStatus
+                                       ? averages.avgStatus.substring(0, 4)
+                                       : averages?.avgStatus || "N/A"}
+                                 </span>
+                              )}
+                           </div>
+                           <div
+                              className={`${isMobile ? "text-xs" : "text-sm"} text-slate-300 group-hover:text-slate-200 transition-colors duration-300`}
+                           >
+                              Avg Status
+                           </div>
+                        </div>
                      </div>
                   </div>
 
-                  <div className="bg-slate-700 p-4 rounded-lg">
-                     <h3 className="text-lg font-medium mb-2">Jump Height</h3>
-                     <div className="flex items-end">
-                        <span className="text-3xl font-bold text-amber-500">{selectedSession.jumpMaxHeight}</span>
-                        <span className="ml-2 text-slate-300">inches</span>
-                     </div>
-                  </div>
+                  {/* HR SpO2 Chart Component */}
+                  <HrSpoChart
+                     sessionData={selectedSession}
+                     groupSessions={isGroupMode ? groupSessions : null}
+                     isGroupMode={isGroupMode}
+                  />
 
-                  <div className="bg-slate-700 p-4 rounded-lg">
-                     <h3 className="text-lg font-medium mb-2">Heart Rate</h3>
-                     <div className="flex items-end">
-                        <span className="text-3xl font-bold text-emerald-500">{selectedSession.avgHeartRate}</span>
-                        <span className="ml-2 text-slate-300">avg bpm</span>
-                     </div>
-                  </div>
-               </div>
-            </div>
-         )}
+                  {/* Exercise Chart Component */}
+                  <ExerciseChart
+                     sessionData={selectedSession}
+                     groupSessions={isGroupMode ? groupSessions : null}
+                     isGroupMode={isGroupMode}
+                  />
+
+                  {/* Detailed Session Component */}
+                  <DetailedSession
+                     sessionData={selectedSession}
+                     groupSessions={isGroupMode ? groupSessions : null}
+                     isGroupMode={isGroupMode}
+                  />
+               </>
+            )}
+         </div>
       </div>
    )
 }
