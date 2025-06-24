@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const HeartRate = () => {
+const HeartRate = ({ isFetching }) => {
   // State variables
   const [heartRate, setHeartRate] = useState(0);
   const [spo2, setSpo2] = useState(0);
@@ -11,6 +11,28 @@ const HeartRate = () => {
   const spo2GaugeRef = useRef(null);
   const heartRateGaugeCanvasRef = useRef(null);
   const spo2GaugeCanvasRef = useRef(null);
+
+  useEffect(() => {
+    if (athleteStatus === 'STOP LATIHAN') {
+      const audio = new Audio('/audio/buzzer.mp3');
+      audio.play();
+    }
+  }, [athleteStatus])
+
+  //Math Random every 2 sec for heartrate spo if isFetching
+  useEffect(() => {
+    if (isFetching) {
+      const interval = setInterval(() => {
+        const randomHeartRate = Math.floor(Math.random() * (100 - 85 + 1)) + 85;
+        const randomSpo2 = Math.floor(Math.random() * (100 - 96 + 1)) + 96;
+        setHeartRate(randomHeartRate);
+        setSpo2(randomSpo2);
+        if (heartRateGaugeRef.current) heartRateGaugeRef.current.set(randomHeartRate);
+        if (spo2GaugeRef.current) spo2GaugeRef.current.set(randomSpo2);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isFetching]);
 
   // Initialize gauges on component mount
   useEffect(() => {
@@ -69,20 +91,20 @@ const HeartRate = () => {
     if (heartRateGaugeRef.current) heartRateGaugeRef.current.set(heart_rate);
     if (spo2GaugeRef.current) spo2GaugeRef.current.set(spo2);
 
-   //  // Update athlete status based on values
-   //  let status = 'Normal';
-   //  if (heartRate > 100 || spo2 < 95) {
-   //    status = 'Warning';
-   //  }
-   //  if (heartRate > 120 || spo2 < 90) {
-   //    status = 'Critical';
-   //  }
+    //  // Update athlete status based on values
+    //  let status = 'Normal';
+    //  if (heartRate > 100 || spo2 < 95) {
+    //    status = 'Warning';
+    //  }
+    //  if (heartRate > 120 || spo2 < 90) {
+    //    status = 'Critical';
+    //  }
     setAthleteStatus(status);
   };
 
   // Assign to window for external access
   useEffect(() => {
-   
+
     window.heartController = (data) => {
       console.log("[heartController] Received data:", data);
       updateData(data);

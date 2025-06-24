@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getHistoryDummy } from "../../actions/historyActions"
+import { getHistory, getHistoryDummy } from "../../actions/historyActions"
 import Sessions from "../../components/Sessions"
 import LoadingSpinner from "../../components/LoadingSpinner"
 import HrSpoChart from "../../components/HrSpoChart"
@@ -40,8 +40,10 @@ const History = () => {
          setLoading(true)
          // Simulate loading delay
          await new Promise((resolve) => setTimeout(resolve, 1500))
-         const data = getHistoryDummy()
-         setHistoryData(data)
+         // const data = getHistoryDummy()
+         const data = await getHistory()
+         // console.log("Client Side", data.logs)
+         setHistoryData(data.logs)
          if (data.logs.length > 0) {
             setSelectedSession(data.logs[0])
          }
@@ -60,7 +62,7 @@ const History = () => {
          (time) => sessionData.data[time].heart?.heart_rate && sessionData.data[time].heart?.spo2,
       )
 
-      if (validData.length === 0) return { avgHR: 0, avgSpO2: 0, avgStatus: "UNKNOWN" }
+      // if (validData.length === 0) return { avgHR: 0, avgSpO2: 0, avgStatus: "UNKNOWN" }
 
       const avgHR = Math.round(
          validData.reduce((sum, time) => sum + sessionData.data[time].heart.heart_rate, 0) / validData.length,
@@ -75,20 +77,45 @@ const History = () => {
          const status = sessionData.data[time].status
          statusCounts[status] = (statusCounts[status] || 0) + 1
       })
-      const avgStatus = Object.keys(statusCounts).reduce((a, b) => (statusCounts[a] > statusCounts[b] ? a : b))
+      // const avgStatus = Object.keys(statusCounts).reduce((a, b) => (statusCounts[a] > statusCounts[b] ? a : b))
+
+
+      // Mapping AVG STATUS ALOGORITHM PAKAI KALAU GA DUMMY
+      // Langkah pertama: ambil semua status
+      const statuses = Object.values(sessionData.data).map(entry => entry.status);
+
+      // Langkah kedua: hitung frekuensi tiap status
+      const statusCount = {};
+      statuses.forEach(status => {
+         if (statusCount[status]) {
+            statusCount[status]++;
+         } else {
+            statusCount[status] = 1;
+         }
+      });
+
+      // Langkah ketiga: cari status dengan frekuensi terbanyak
+      let avgStatus = null;
+      let maxCount = 0;
+      for (const status in statusCount) {
+         if (statusCount[status] > maxCount) {
+            maxCount = statusCount[status];
+            avgStatus = status;
+         }
+      }
 
       return { avgHR, avgSpO2, avgStatus }
    }
 
    const getStatusBadgeColor = (status) => {
       switch (status) {
-         case "EXCELLENT":
+         case "NORMAL":
             return "bg-green-500 text-white"
-         case "GOOD":
+         case "LELAH":
             return "bg-blue-500 text-white"
-         case "FAIR":
+         case "OVERWORK":
             return "bg-yellow-500 text-white"
-         case "POOR":
+         case "STOP LATIHAN":
             return "bg-red-500 text-white"
          default:
             return "bg-gray-500 text-white"
@@ -129,6 +156,7 @@ const History = () => {
    }
 
    const averages = selectedSession ? calculateAverages(selectedSession) : null
+   // console.log("AVGSSS", averages)
 
    return (
       <div className="bg-slate-800 text-white min-h-screen p-3 lg:p-6  rounded-lg">

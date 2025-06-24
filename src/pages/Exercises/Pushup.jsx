@@ -14,7 +14,7 @@ const Pushup = () => {
    const [timeElapsedPushup, setTimeElapsedPushup] = useState(0);
    const [isRunning, setIsRunning] = useState(false);
    const [time, setTime] = useState(0);
-   const [isFetching, setIsFetching] = useState(false);
+   const [isFetching, setIsFetching] = useState(true);
    const [resetDialog, setResetDialog] = useState(false)
    const [submitDialog, setSubmitDialog] = useState(false)
    const [submitPayload, setSubmitPayload] = useState({ name: 'pushup' })
@@ -188,7 +188,7 @@ const Pushup = () => {
    const updateData = useCallback((data) => {
       if (!isFetching) return;
 
-      const detectedPushups = data.pushupCount || 1; 
+      const detectedPushups = data.pushupCount || 1;
 
       setPushUpCount(prev => prev + detectedPushups);
       setPushUpSet(prev => prev + detectedPushups);
@@ -413,7 +413,7 @@ const Pushup = () => {
 
 
          <hr className='h-[3px] bg-blue-500 mt-20 mb-10'></hr>
-         <HeartRate />
+         <HeartRate isFetching={isFetching} />
 
          {resetDialog &&
             <ResetDialog

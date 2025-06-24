@@ -431,7 +431,7 @@ const Situp = () => {
          </div>
 
          <hr className='h-[3px] bg-blue-500 mt-20 mb-10'></hr>
-         <HeartRate />
+         <HeartRate isFetching={isFetching} />
 
          {resetDialog &&
             <ResetDialog

@@ -85,57 +85,57 @@ const Punch = () => {
    };
 
    useEffect(() => {
-      punchPowerGaugeRef.current = new window.Gauge(punchPowerGaugeCanvasRef.current).setOptions({
-         angle: 0.1,
-         lineWidth: 0.44,
-         radiusScale: 0.6,
-         pointer: {
-            length: 0.9,
-            strokeWidth: 0.035,
-            color: '#ffffff'
-         },
-         staticLabels: {
-            font: "10px sans-serif",
-            labels: [0, 20, 40, 60, 80, 100],
-            color: "white",
-            fractionDigits: 0
-         },
-         limitMax: true,
-         highDpiSupport: true,
-         colorStart: '#6FADCF',
-         colorStop: '#4F89A1',
-         strokeColor: '#E0E0E0',
-         generateGradient: true
-      });
-      punchPowerGaugeRef.current.maxValue = 100;
-      punchPowerGaugeRef.current.setMinValue(0);
-      punchPowerGaugeRef.current.set(0);
+      // punchPowerGaugeRef.current = new window.Gauge(punchPowerGaugeCanvasRef.current).setOptions({
+      //    angle: 0.1,
+      //    lineWidth: 0.44,
+      //    radiusScale: 0.6,
+      //    pointer: {
+      //       length: 0.9,
+      //       strokeWidth: 0.035,
+      //       color: '#ffffff'
+      //    },
+      //    staticLabels: {
+      //       font: "10px sans-serif",
+      //       labels: [0, 20, 40, 60, 80, 100],
+      //       color: "white",
+      //       fractionDigits: 0
+      //    },
+      //    limitMax: true,
+      //    highDpiSupport: true,
+      //    colorStart: '#6FADCF',
+      //    colorStop: '#4F89A1',
+      //    strokeColor: '#E0E0E0',
+      //    generateGradient: true
+      // });
+      // punchPowerGaugeRef.current.maxValue = 100;
+      // punchPowerGaugeRef.current.setMinValue(0);
+      // punchPowerGaugeRef.current.set(0);
 
-      retractionTimeGaugeRef.current = new window.Gauge(retractionTimeGaugeCanvasRef.current).setOptions({
-         angle: 0.1,
-         lineWidth: 0.44,
-         radiusScale: 0.6,
-         pointer: {
-            length: 0.9,
-            strokeWidth: 0.035,
-            color: '#ffffff'
-         },
-         staticLabels: {
-            font: "10px sans-serif",
-            labels: [0, 20, 40, 60, 80, 100],
-            color: "white",
-            fractionDigits: 0
-         },
-         limitMax: true,
-         highDpiSupport: true,
-         colorStart: '#FF6F6F',
-         colorStop: '#FF4F4F',
-         strokeColor: '#E0E0E0',
-         generateGradient: true
-      });
-      retractionTimeGaugeRef.current.maxValue = 100;
-      retractionTimeGaugeRef.current.setMinValue(0);
-      retractionTimeGaugeRef.current.set(0);
+      // retractionTimeGaugeRef.current = new window.Gauge(retractionTimeGaugeCanvasRef.current).setOptions({
+      //    angle: 0.1,
+      //    lineWidth: 0.44,
+      //    radiusScale: 0.6,
+      //    pointer: {
+      //       length: 0.9,
+      //       strokeWidth: 0.035,
+      //       color: '#ffffff'
+      //    },
+      //    staticLabels: {
+      //       font: "10px sans-serif",
+      //       labels: [0, 20, 40, 60, 80, 100],
+      //       color: "white",
+      //       fractionDigits: 0
+      //    },
+      //    limitMax: true,
+      //    highDpiSupport: true,
+      //    colorStart: '#FF6F6F',
+      //    colorStop: '#FF4F4F',
+      //    strokeColor: '#E0E0E0',
+      //    generateGradient: true
+      // });
+      // retractionTimeGaugeRef.current.maxValue = 100;
+      // retractionTimeGaugeRef.current.setMinValue(0);
+      // retractionTimeGaugeRef.current.set(0);
 
       // Initialize power chart
       const ctx = powerChartCanvasRef.current.getContext('2d');
@@ -144,15 +144,22 @@ const Punch = () => {
          data: {
             labels: [],
             datasets: [
+               // {
+               //    label: 'Punch Power',
+               //    data: [],
+               //    borderColor: 'rgba(54, 162, 235, 1)',
+               //    borderWidth: 1,
+               //    fill: false,
+               // },
+               // {
+               //    label: 'Retraction Power',
+               //    data: [],
+               //    borderColor: 'rgba(255, 99, 132, 1)',
+               //    borderWidth: 1,
+               //    fill: false,
+               // },
                {
-                  label: 'Punch Power',
-                  data: [],
-                  borderColor: 'rgba(54, 162, 235, 1)',
-                  borderWidth: 1,
-                  fill: false,
-               },
-               {
-                  label: 'Retraction Power',
+                  label: 'Punch Count',
                   data: [],
                   borderColor: 'rgba(255, 99, 132, 1)',
                   borderWidth: 1,
@@ -366,7 +373,7 @@ const Punch = () => {
             </section>
 
             <div className="row cards-container">
-               <div className="col-md-4">
+               <div className="col-md-6">
                   <div className="card carddata">
                      <div className="card-body">
                         <h5 className="card-title text-white">Punch Count</h5>
@@ -376,7 +383,7 @@ const Punch = () => {
                   </div>
                </div>
 
-               <div className="col-md-4">
+               <div className="col-md-6">
                   <div className="card carddata">
                      <div className="card-body  gap-3">
                         <h5 className="card-title text-pink-300 ">Punching Type</h5>
@@ -385,7 +392,7 @@ const Punch = () => {
                   </div>
                </div>
 
-               <div className="col-span-full md:col-span-auto col-md-4 ">
+               {/* <div className="col-span-full md:col-span-auto col-md-4 ">
                   <div className="card carddata">
                      <div className="card-body justify-center gap-14">
                         <h5 className="card-title text-green-300">Max Power</h5>
@@ -427,7 +434,7 @@ const Punch = () => {
                         ></canvas>
                      </div>
                   </div>
-               </div>
+               </div> */}
 
             </div>
             <div className="row mt-5">
@@ -449,7 +456,7 @@ const Punch = () => {
          </div>
 
          <hr className='h-[3px] bg-blue-500 mt-20 mb-10'></hr>
-         <HeartRate />
+         <HeartRate isFetching={isFetching} />
 
          {resetDialog &&
             <ResetDialog

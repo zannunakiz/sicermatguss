@@ -33,13 +33,13 @@ const DetailedSession = ({ sessionData, groupSessions, isGroupMode }) => {
 
   const getStatusBadgeColor = (status) => {
     switch (status) {
-      case "EXCELLENT":
+      case "NORMAL":
         return "bg-green-500 text-white"
-      case "GOOD":
+      case "LELAH":
         return "bg-blue-500 text-white"
-      case "FAIR":
+      case "OVERWORK":
         return "bg-yellow-500 text-white"
-      case "POOR":
+      case "STOP LATIHAN":
         return "bg-red-500 text-white"
       default:
         return "bg-gray-500 text-white"
@@ -567,6 +567,7 @@ const DetailedSession = ({ sessionData, groupSessions, isGroupMode }) => {
   )
 
   const totalCount = sessionData.data.total_count
+
   const avgCount = Math.round(
     timeIntervals.reduce((sum, time) => sum + (sessionData.data[time].sport?.count || 0), 0) / timeIntervals.length,
   )
@@ -581,14 +582,39 @@ const DetailedSession = ({ sessionData, groupSessions, isGroupMode }) => {
 
   // Calculate most common status
   const statusCounts = {}
+
   validData.forEach((time) => {
     const status = sessionData.data[time].status
     statusCounts[status] = (statusCounts[status] || 0) + 1
   })
-  const avgStatus =
-    Object.keys(statusCounts).length > 0
-      ? Object.keys(statusCounts).reduce((a, b) => (statusCounts[a] > statusCounts[b] ? a : b))
-      : "UNKNOWN"
+
+
+
+  // Mapping AVG STATUS ALOGORITHM PAKAI KALAU GA DUMMY
+  // Langkah pertama: ambil semua status
+  const statuses = Object.values(sessionData.data).map(entry => entry.status);
+  // console.log("StATUSESSS", statuses)
+
+  // Langkah kedua: hitung frekuensi tiap status
+  const statusCount = {};
+  statuses.forEach(status => {
+    if (statusCount[status]) {
+      statusCount[status]++;
+    } else {
+      statusCount[status] = 1;
+    }
+  });
+
+  // Langkah ketiga: cari status dengan frekuensi terbanyak
+  let avgStatus = null;
+  let maxCount = 0;
+  for (const status in statusCount) {
+    if (statusCount[status] > maxCount) {
+      maxCount = statusCount[status];
+      avgStatus = status;
+    }
+  }
+  // console.log(avgStatus); // Outputnya string status yang paling sering muncul
 
   const handlePageChange = (page) => {
     setCurrentPage(page)
@@ -877,7 +903,7 @@ const DetailedSession = ({ sessionData, groupSessions, isGroupMode }) => {
           Showing {startIndex + 1}-{Math.min(endIndex, totalRows)} of {totalRows} entries
         </div>
 
-        <div className={`flex ${isMobile ? "flex-col gap-2 order-1" : "items-center gap-1"}`}>
+        <div className={`flex ${isMobile ? "flex-row gap-3 order-1" : "items-center gap-1"}`}>
           {/* Navigation Buttons */}
           <div className={`flex items-center ${isMobile ? "gap-0.5" : "gap-1"}`}>
             <button

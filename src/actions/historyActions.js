@@ -1,3 +1,6 @@
+
+import { getToken } from "./creds"
+
 // Function to generate fuzzy status based on heart rate and SpO2
 export const fuzzySugeno = (spo2, heartRate) => {
    if (!spo2 || !heartRate) return "UNKNOWN"
@@ -16,12 +19,22 @@ export const fuzzySugeno = (spo2, heartRate) => {
 // Function to get history from API
 export const getHistory = async () => {
    try {
-      const response = await fetch(`${process.env.REACT_APP_API}/log/get-logs`)
+      const response = await fetch(`${process.env.REACT_APP_API}/log/get-logs`, {
+         method: "GET",
+         headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${getToken()}`,
+         },
+      })
       if (!response.ok) {
          throw new Error("Failed to fetch history")
       }
-      const data = await response.json()
-      return data
+
+      const { content } = await response.json()
+      // console.log("CONTEnt", content)
+      return content
+
+      // return { logs: data.sort((a, b) => new Date(b.date) - new Date(a.date)) };
    } catch (error) {
       console.error("Error fetching history:", error)
       throw error
@@ -88,6 +101,9 @@ export const getHistoryDummy = () => {
          });
       }
    });
-
+   // console.log({
+   //    logs: logs.sort((a, b) => new Date(b.date) - new Date(a.date))
+   // })
    return { logs: logs.sort((a, b) => new Date(b.date) - new Date(a.date)) };
+
 };

@@ -270,6 +270,8 @@ const Sessions = ({
          (time) => sessionData[time].heart?.heart_rate && sessionData[time].heart?.spo2,
       )
 
+
+
       if (validData.length === 0) return "UNKNOWN"
 
       // Calculate most common status
